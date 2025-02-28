@@ -1,0 +1,1386 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "5672cb124bdc2d1a0f8b4568",
+        "name": "AA Battery",
+        "shortName": "AA batt.",
+        "basePrice": 652
+      },
+      {
+        "id": "5672cb304bdc2dc2088b456a",
+        "name": "D Size battery",
+        "shortName": "D batt.",
+        "basePrice": 2207
+      },
+      {
+        "id": "5672cb724bdc2dc2088b456b",
+        "name": "Geiger-Muller counter",
+        "shortName": "GMcount",
+        "basePrice": 16684
+      },
+      {
+        "id": "56742c284bdc2d98058b456d",
+        "name": "Crickent lighter",
+        "shortName": "Crickent",
+        "basePrice": 1320
+      },
+      {
+        "id": "56742c2e4bdc2d95058b456d",
+        "name": "Zibbo lighter",
+        "shortName": "Zibbo",
+        "basePrice": 9617
+      },
+      {
+        "id": "56742c324bdc2d150f8b456d",
+        "name": "Broken GPhone smartphone",
+        "shortName": "GPhone",
+        "basePrice": 18682
+      },
+      {
+        "id": "5733279d245977289b77ec24",
+        "name": "Car battery",
+        "shortName": "Car battery",
+        "basePrice": 61563
+      },
+      {
+        "id": "573474f924597738002c6174",
+        "name": "Chainlet",
+        "shortName": "Chainlet",
+        "basePrice": 7235
+      },
+      {
+        "id": "5734758f24597738025ee253",
+        "name": "Golden neck chain",
+        "shortName": "GoldChain",
+        "basePrice": 38177
+      },
+      {
+        "id": "573475fb24597737fb1379e1",
+        "name": "Apollo Soyuz cigarettes",
+        "shortName": "Apollo",
+        "basePrice": 2500
+      },
+      {
+        "id": "573476d324597737da2adc13",
+        "name": "Malboro Cigarettes",
+        "shortName": "Malboro",
+        "basePrice": 2210
+      },
+      {
+        "id": "573476f124597737e04bf328",
+        "name": "Wilston cigarettes",
+        "shortName": "Wilston",
+        "basePrice": 7984
+      },
+      {
+        "id": "5734770f24597738025ee254",
+        "name": "Strike Cigarettes",
+        "shortName": "Strike",
+        "basePrice": 3120
+      },
+      {
+        "id": "5734779624597737e04bf329",
+        "name": "CPU fan",
+        "shortName": "CPU fan",
+        "basePrice": 4670
+      },
+      {
+        "id": "573477e124597737dd42e191",
+        "name": "PC CPU",
+        "shortName": "CPU",
+        "basePrice": 13914
+      },
+      {
+        "id": "5734781f24597737e04bf32a",
+        "name": "DVD drive",
+        "shortName": "DVD",
+        "basePrice": 8295
+      },
+      {
+        "id": "573478bc24597738002c6175",
+        "name": "Horse figurine",
+        "shortName": "Horse",
+        "basePrice": 11448
+      },
+      {
+        "id": "5734795124597738002c6176",
+        "name": "Insulating tape",
+        "shortName": "Tape",
+        "basePrice": 2019
+      },
+      {
+        "id": "57347b8b24597737dd42e192",
+        "name": "Classic matches",
+        "shortName": "Matches",
+        "basePrice": 2020
+      },
+      {
+        "id": "57347baf24597738002c6178",
+        "name": "RAM stick",
+        "shortName": "RAM",
+        "basePrice": 10966
+      },
+      {
+        "id": "57347c1124597737fb1379e3",
+        "name": "Duct tape",
+        "shortName": "Duct tape",
+        "basePrice": 2499
+      },
+      {
+        "id": "57347c2e24597744902c94a1",
+        "name": "Power supply unit",
+        "shortName": "PSU",
+        "basePrice": 7936
+      },
+      {
+        "id": "57347c5b245977448d35f6e1",
+        "name": "Bolts",
+        "shortName": "Bolts",
+        "basePrice": 11000
+      },
+      {
+        "id": "57347c77245977448d35f6e2",
+        "name": "Screw nuts",
+        "shortName": "Nuts",
+        "basePrice": 8700
+      },
+      {
+        "id": "57347c93245977448d35f6e3",
+        "name": "Toothpaste",
+        "shortName": "Toothpaste",
+        "basePrice": 1927
+      },
+      {
+        "id": "57347ca924597744596b4e71",
+        "name": "Graphics card",
+        "shortName": "GPU",
+        "basePrice": 198000
+      },
+      {
+        "id": "57347cd0245977445a2d6ff1",
+        "name": "T-Shaped plug",
+        "shortName": "T-Plug",
+        "basePrice": 2481
+      },
+      {
+        "id": "577e1c9d2459773cd707c525",
+        "name": "Printer paper",
+        "shortName": "Paper",
+        "basePrice": 2337
+      },
+      {
+        "id": "5909e99886f7740c983b9984",
+        "name": "USB Adapter",
+        "shortName": "USB-A",
+        "basePrice": 1737
+      },
+      {
+        "id": "590a358486f77429692b2790",
+        "name": "Rechargeable battery",
+        "shortName": "RBattery",
+        "basePrice": 17035
+      },
+      {
+        "id": "590a373286f774287540368b",
+        "name": "Dry fuel",
+        "shortName": "DFuel",
+        "basePrice": 42175
+      },
+      {
+        "id": "590a386e86f77429692b27ab",
+        "name": "Damaged hard drive",
+        "shortName": "HDD",
+        "basePrice": 7491
+      },
+      {
+        "id": "590a391c86f774385a33c404",
+        "name": "Magnet",
+        "shortName": "Magnet",
+        "basePrice": 12713
+      },
+      {
+        "id": "590a3b0486f7743954552bdb",
+        "name": "Printed circuit board",
+        "shortName": "PCB",
+        "basePrice": 12749
+      },
+      {
+        "id": "590a3c0a86f774385a33c450",
+        "name": "Spark plug",
+        "shortName": "SPlug",
+        "basePrice": 10989
+      },
+      {
+        "id": "590a3cd386f77436f20848cb",
+        "name": "Energy-saving lamp",
+        "shortName": "ES Lamp",
+        "basePrice": 10822
+      },
+      {
+        "id": "590a3d9c86f774385926e510",
+        "name": "Ultraviolet lamp",
+        "shortName": "UV Lamp",
+        "basePrice": 15554
+      },
+      {
+        "id": "590a3efd86f77437d351a25b",
+        "name": "Gas analyzer",
+        "shortName": "GasAn",
+        "basePrice": 21697
+      },
+      {
+        "id": "590c2b4386f77425357b6123",
+        "name": "Pliers",
+        "shortName": "Pliers",
+        "basePrice": 8000
+      },
+      {
+        "id": "590c2c9c86f774245b1f03f2",
+        "name": "Construction measuring tape",
+        "shortName": "MTape",
+        "basePrice": 3769
+      },
+      {
+        "id": "590c2d8786f774245b1f03f3",
+        "name": "Screwdriver",
+        "shortName": "Scdr.",
+        "basePrice": 3500
+      },
+      {
+        "id": "590c2e1186f77425357b6124",
+        "name": "Toolset",
+        "shortName": "Toolset",
+        "basePrice": 31000
+      },
+      {
+        "id": "590c311186f77424d1667482",
+        "name": "Wrench",
+        "shortName": "Wrench",
+        "basePrice": 3544
+      },
+      {
+        "id": "590c31c586f774245e3141b2",
+        "name": "Pack of nails",
+        "shortName": "Nails",
+        "basePrice": 4105
+      },
+      {
+        "id": "590c346786f77423e50ed342",
+        "name": "Xenomorph sealing foam",
+        "shortName": "Xeno",
+        "basePrice": 33778
+      },
+      {
+        "id": "590c35a486f774273531c822",
+        "name": "Shustrilo sealing foam",
+        "shortName": "Shus",
+        "basePrice": 35502
+      },
+      {
+        "id": "590c595c86f7747884343ad7",
+        "name": "Gas mask air filter",
+        "shortName": "Filter",
+        "basePrice": 10039
+      },
+      {
+        "id": "590c5a7286f7747884343aea",
+        "name": "Gunpowder \"Kite\"",
+        "shortName": "Kite",
+        "basePrice": 14000
+      },
+      {
+        "id": "590c5bbd86f774785762df04",
+        "name": "WD-40 (100ml)",
+        "shortName": "WD-40",
+        "basePrice": 6958
+      },
+      {
+        "id": "590c5c9f86f77477c91c36e7",
+        "name": "WD-40 (400ml)",
+        "shortName": "WD-40",
+        "basePrice": 17261
+      },
+      {
+        "id": "590de71386f774347051a052",
+        "name": "Antique teapot",
+        "shortName": "Teapot",
+        "basePrice": 46900
+      },
+      {
+        "id": "590de7e986f7741b096e5f32",
+        "name": "Antique vase",
+        "shortName": "Vase",
+        "basePrice": 67800
+      },
+      {
+        "id": "59e3556c86f7741776641ac2",
+        "name": "Ox bleach",
+        "shortName": "Bleach",
+        "basePrice": 5988
+      },
+      {
+        "id": "59e358a886f7741776641ac3",
+        "name": "Clin window cleaner",
+        "shortName": "Clin",
+        "basePrice": 7118
+      },
+      {
+        "id": "59e3596386f774176c10a2a2",
+        "name": "PAID AntiRoach spray",
+        "shortName": "PAID",
+        "basePrice": 5892
+      },
+      {
+        "id": "59e35abd86f7741778269d82",
+        "name": "Pack of sodium bicarbonate",
+        "shortName": "Sodium",
+        "basePrice": 6347
+      },
+      {
+        "id": "59e35cbb86f7741778269d83",
+        "name": "Corrugated hose",
+        "shortName": "Hose",
+        "basePrice": 9523
+      },
+      {
+        "id": "59e35de086f7741778269d84",
+        "name": "Electric drill",
+        "shortName": "Drill",
+        "basePrice": 32943
+      },
+      {
+        "id": "59e35ef086f7741777737012",
+        "name": "Pack of screws",
+        "shortName": "Screws",
+        "basePrice": 3140
+      },
+      {
+        "id": "59e3606886f77417674759a5",
+        "name": "Bottle of saline solution",
+        "shortName": "NaCl",
+        "basePrice": 8508
+      },
+      {
+        "id": "59e361e886f774176c10a2a5",
+        "name": "Bottle of hydrogen peroxide",
+        "shortName": "H2O2",
+        "basePrice": 12168
+      },
+      {
+        "id": "59e3639286f7741777737013",
+        "name": "Bronze lion figurine",
+        "shortName": "Lion",
+        "basePrice": 162935
+      },
+      {
+        "id": "59e3647686f774176a362507",
+        "name": "Wooden clock",
+        "shortName": "Clock",
+        "basePrice": 83316
+      },
+      {
+        "id": "59e3658a86f7741776641ac4",
+        "name": "Cat figurine",
+        "shortName": "Cat",
+        "basePrice": 62308
+      },
+      {
+        "id": "59e366c186f7741778269d85",
+        "name": "Piece of plexiglass",
+        "shortName": "Plexiglass",
+        "basePrice": 8658
+      },
+      {
+        "id": "59e36c6f86f774176c10a2a7",
+        "name": "Power cord",
+        "shortName": "Cord",
+        "basePrice": 12623
+      },
+      {
+        "id": "59f32bb586f774757e1e8442",
+        "name": "Dogtag BEAR",
+        "shortName": "BEAR",
+        "basePrice": 900
+      },
+      {
+        "id": "59f32c3b86f77472a31742f0",
+        "name": "Dogtag USEC",
+        "shortName": "USEC",
+        "basePrice": 900
+      },
+      {
+        "id": "59faf7ca86f7740dbe19f6c2",
+        "name": "Roler Submariner gold wrist watch",
+        "shortName": "Roler",
+        "basePrice": 71049
+      },
+      {
+        "id": "59faf98186f774067b6be103",
+        "name": "Alkaline cleaner for heat exchangers",
+        "shortName": "Alkali",
+        "basePrice": 8457
+      },
+      {
+        "id": "59fafb5d86f774067a6f2084",
+        "name": "Propane tank (5L)",
+        "shortName": "Propane",
+        "basePrice": 12646
+      },
+      {
+        "id": "59faff1d86f7746c51718c9c",
+        "name": "Physical Bitcoin",
+        "shortName": "0.2BTC",
+        "basePrice": 1208617
+      },
+      {
+        "id": "5af0484c86f7740f02001f7f",
+        "name": "Can of Majaica coffee beans",
+        "shortName": "Majaica",
+        "basePrice": 14977
+      },
+      {
+        "id": "5af04b6486f774195a3ebb49",
+        "name": "Pliers Elite",
+        "shortName": "Elite",
+        "basePrice": 29000
+      },
+      {
+        "id": "5af0534a86f7743b6f354284",
+        "name": "Ophthalmoscope",
+        "shortName": "OScope",
+        "basePrice": 84912
+      },
+      {
+        "id": "5af0561e86f7745f5f3ad6ac",
+        "name": "Portable Powerbank",
+        "shortName": "Powerban",
+        "basePrice": 20391
+      },
+      {
+        "id": "5b4335ba86f7744d2837a264",
+        "name": "Medical bloodset",
+        "shortName": "Bloodset",
+        "basePrice": 9765
+      },
+      {
+        "id": "5b43575a86f77424f443fe62",
+        "name": "Fuel conditioner",
+        "shortName": "FCond",
+        "basePrice": 60604
+      },
+      {
+        "id": "5bc9b355d4351e6d1509862a",
+        "name": "#FireKlean gun lube",
+        "shortName": "#FireKlean",
+        "basePrice": 36428
+      },
+      {
+        "id": "5bc9b720d4351e450201234b",
+        "name": "Golden 1GPhone smartphone",
+        "shortName": "1GPhone",
+        "basePrice": 44639
+      },
+      {
+        "id": "5bc9b9ecd4351e3bac122519",
+        "name": "Deadlyslob's beard oil",
+        "shortName": "BeardOil",
+        "basePrice": 55449
+      },
+      {
+        "id": "5bc9bc53d4351e00367fbcee",
+        "name": "Golden rooster figurine",
+        "shortName": "Rooster",
+        "basePrice": 90566
+      },
+      {
+        "id": "5bc9bdb8d4351e003562b8a1",
+        "name": "Silver Badge",
+        "shortName": "Badge",
+        "basePrice": 60290
+      },
+      {
+        "id": "5bc9be8fd4351e00334cae6e",
+        "name": "42 Signature Blend English Tea",
+        "shortName": "42",
+        "basePrice": 27754
+      },
+      {
+        "id": "5bc9c049d4351e44f824d360",
+        "name": "Battered antique book",
+        "shortName": "Book",
+        "basePrice": 63029
+      },
+      {
+        "id": "5bc9c377d4351e3bac12251b",
+        "name": "Old firesteel",
+        "shortName": "Firesteel",
+        "basePrice": 63402
+      },
+      {
+        "id": "5c052e6986f7746b207bc3c9",
+        "name": "Portable defibrillator",
+        "shortName": "Defib",
+        "basePrice": 224600
+      },
+      {
+        "id": "5c052f6886f7746b1e3db148",
+        "name": "Military COFDM Wireless Signal Transmitter",
+        "shortName": "SG-C10",
+        "basePrice": 145500
+      },
+      {
+        "id": "5c052fb986f7746b2101e909",
+        "name": "UHF RFID Reader",
+        "shortName": "RFIDR",
+        "basePrice": 48000
+      },
+      {
+        "id": "5c05300686f7746dce784e5d",
+        "name": "VPX Flash Storage Module",
+        "shortName": "VPX",
+        "basePrice": 152400
+      },
+      {
+        "id": "5c05308086f7746b2101e90b",
+        "name": "Virtex programmable processor",
+        "shortName": "Virtex",
+        "basePrice": 120000
+      },
+      {
+        "id": "5c0530ee86f774697952d952",
+        "name": "LEDX Skin Transilluminator",
+        "shortName": "LEDX",
+        "basePrice": 970000
+      },
+      {
+        "id": "5c06779c86f77426e00dd782",
+        "name": "Bundle of wires",
+        "shortName": "Wires",
+        "basePrice": 7400
+      },
+      {
+        "id": "5c06782b86f77426df5407d2",
+        "name": "Capacitors",
+        "shortName": "Caps",
+        "basePrice": 2500
+      },
+      {
+        "id": "5c12620d86f7743f8b198b72",
+        "name": "Tetriz portable game console",
+        "shortName": "Tetriz",
+        "basePrice": 120000
+      },
+      {
+        "id": "5c1265fc86f7743f896a21c2",
+        "name": "Broken GPhone X smartphone",
+        "shortName": "GPX",
+        "basePrice": 32000
+      },
+      {
+        "id": "5c1267ee86f77416ec610f72",
+        "name": "Chain with Prokill medallion",
+        "shortName": "Prokill",
+        "basePrice": 85000
+      },
+      {
+        "id": "5c12688486f77426843c7d32",
+        "name": "Paracord",
+        "shortName": "Paracord",
+        "basePrice": 22500
+      },
+      {
+        "id": "5c13cd2486f774072c757944",
+        "name": "Soap",
+        "shortName": "Soap",
+        "basePrice": 3890
+      },
+      {
+        "id": "5c13cef886f774072e618e82",
+        "name": "Toilet paper",
+        "shortName": "TP",
+        "basePrice": 8800
+      },
+      {
+        "id": "5d0375ff86f774186372f685",
+        "name": "Military cable",
+        "shortName": "MCable",
+        "basePrice": 41200
+      },
+      {
+        "id": "5d0376a486f7747d8050965c",
+        "name": "Military circuit board",
+        "shortName": "MCB",
+        "basePrice": 40000
+      },
+      {
+        "id": "5d03775b86f774203e7e0c4b",
+        "name": "Phased array element",
+        "shortName": "AESA",
+        "basePrice": 166000
+      },
+      {
+        "id": "5d0377ce86f774186372f689",
+        "name": "Iridium military thermal vision module",
+        "shortName": "Iridium",
+        "basePrice": 81200
+      },
+      {
+        "id": "5d03784a86f774203e7e0c4d",
+        "name": "Military gyrotachometer",
+        "shortName": "MGT",
+        "basePrice": 62000
+      },
+      {
+        "id": "5d0378d486f77420421a5ff4",
+        "name": "Military power filter",
+        "shortName": "PFilter",
+        "basePrice": 55000
+      },
+      {
+        "id": "5d03794386f77420415576f5",
+        "name": "6-STEN-140-M military battery",
+        "shortName": "Tank battery",
+        "basePrice": 330000
+      },
+      {
+        "id": "5d0379a886f77420407aa271",
+        "name": "OFZ 30x165mm shell",
+        "shortName": "OFZ",
+        "basePrice": 56000
+      },
+      {
+        "id": "5d1b2f3f86f774252167a52c",
+        "name": "FP-100 filter absorber",
+        "shortName": "FP-100",
+        "basePrice": 82000
+      },
+      {
+        "id": "5d1b2fa286f77425227d1674",
+        "name": "Electric motor",
+        "shortName": "Motor",
+        "basePrice": 43000
+      },
+      {
+        "id": "5d1b2ffd86f77425243e8d17",
+        "name": "NIXXOR lens",
+        "shortName": "NIXXOR",
+        "basePrice": 25300
+      },
+      {
+        "id": "5d1b304286f774253763a528",
+        "name": "Working LCD",
+        "shortName": "LCD",
+        "basePrice": 38000
+      },
+      {
+        "id": "5d1b309586f77425227d1676",
+        "name": "Broken LCD",
+        "shortName": "BrokenLCD",
+        "basePrice": 21500
+      },
+      {
+        "id": "5d1b313086f77425227d1678",
+        "name": "Phase control relay",
+        "shortName": "Relay",
+        "basePrice": 6473
+      },
+      {
+        "id": "5d1b317c86f7742523398392",
+        "name": "Hand drill",
+        "shortName": "Hand drill",
+        "basePrice": 60000
+      },
+      {
+        "id": "5d1b31ce86f7742523398394",
+        "name": "Round pliers",
+        "shortName": "RPliers",
+        "basePrice": 27000
+      },
+      {
+        "id": "5d1b327086f7742525194449",
+        "name": "Pressure gauge",
+        "shortName": "PGauge",
+        "basePrice": 61200
+      },
+      {
+        "id": "5d1b32c186f774252167a530",
+        "name": "Analog thermometer",
+        "shortName": "Therm.",
+        "basePrice": 45600
+      },
+      {
+        "id": "5d1b36a186f7742523398433",
+        "name": "Metal fuel tank",
+        "shortName": "Fuel",
+        "basePrice": 48000
+      },
+      {
+        "id": "5d1b371186f774253763a656",
+        "name": "Expeditionary fuel tank",
+        "shortName": "Fuel",
+        "basePrice": 50000
+      },
+      {
+        "id": "5d1b385e86f774252167b98a",
+        "name": "Water filter",
+        "shortName": "WFilter",
+        "basePrice": 24500
+      },
+      {
+        "id": "5d1b392c86f77425243e98fe",
+        "name": "Light bulb",
+        "shortName": "Bulb",
+        "basePrice": 9500
+      },
+      {
+        "id": "5d1b39a386f774252339976f",
+        "name": "Silicone tube",
+        "shortName": "Tube",
+        "basePrice": 18900
+      },
+      {
+        "id": "5d1b3a5d86f774252167ba22",
+        "name": "Pile of meds",
+        "shortName": "Meds",
+        "basePrice": 6500
+      },
+      {
+        "id": "5d1b3f2d86f774253763b735",
+        "name": "Disposable syringe",
+        "shortName": "Syringe",
+        "basePrice": 8540
+      },
+      {
+        "id": "5d1c774f86f7746d6620f8db",
+        "name": "Radiator helix",
+        "shortName": "Helix",
+        "basePrice": 14500
+      },
+      {
+        "id": "5d1c819a86f774771b0acd6c",
+        "name": "Weapon parts",
+        "shortName": "WParts",
+        "basePrice": 14240
+      },
+      {
+        "id": "5d235a5986f77443f6329bc6",
+        "name": "Gold skull ring",
+        "shortName": "Skull",
+        "basePrice": 55000
+      },
+      {
+        "id": "5d40412b86f7743cb332ac3a",
+        "name": "Schaman shampoo",
+        "shortName": "Shampoo",
+        "basePrice": 7000
+      },
+      {
+        "id": "5d40419286f774318526545f",
+        "name": "Metal cutting scissors",
+        "shortName": "MScissors",
+        "basePrice": 22300
+      },
+      {
+        "id": "5d4041f086f7743cac3f22a7",
+        "name": "Ortodontox toothpaste",
+        "shortName": "Ortodontox",
+        "basePrice": 5400
+      },
+      {
+        "id": "5d40425986f7743185265461",
+        "name": "Nippers",
+        "shortName": "Nippers",
+        "basePrice": 17000
+      },
+      {
+        "id": "5d4042a986f7743185265463",
+        "name": "Flat screwdriver (Long)",
+        "shortName": "L&F scdr.",
+        "basePrice": 33000
+      },
+      {
+        "id": "5d63d33b86f7746ea9275524",
+        "name": "Flat screwdriver",
+        "shortName": "F scdr.",
+        "basePrice": 14000
+      },
+      {
+        "id": "5d6fc78386f77449d825f9dc",
+        "name": "Gunpowder \"Eagle\"",
+        "shortName": "Eagle",
+        "basePrice": 32000
+      },
+      {
+        "id": "5d6fc87386f77449db3db94e",
+        "name": "Gunpowder \"Hawk\"",
+        "shortName": "Hawk",
+        "basePrice": 35000
+      },
+      {
+        "id": "5df8a6a186f77412640e2e80",
+        "name": "Christmas tree ornament (Red)",
+        "shortName": "Ornament",
+        "basePrice": 15000
+      },
+      {
+        "id": "5df8a72c86f77412640e2e83",
+        "name": "Christmas tree ornament (Silver)",
+        "shortName": "Ornament",
+        "basePrice": 10000
+      },
+      {
+        "id": "5df8a77486f77412672a1e3f",
+        "name": "Christmas tree ornament (Violet)",
+        "shortName": "Ornament",
+        "basePrice": 20000
+      },
+      {
+        "id": "5e2aedd986f7746d404f3aa4",
+        "name": "GreenBat lithium battery",
+        "shortName": "GreenBat",
+        "basePrice": 26000
+      },
+      {
+        "id": "5e2aee0a86f774755a234b62",
+        "name": "Cyclon rechargeable battery",
+        "shortName": "Cyclon",
+        "basePrice": 85000
+      },
+      {
+        "id": "5e2aef7986f7746d3f3c33f5",
+        "name": "Repellent",
+        "shortName": "Repellent",
+        "basePrice": 8457
+      },
+      {
+        "id": "5e2af00086f7746d3f3c33f7",
+        "name": "Smoked Chimney drain cleaner",
+        "shortName": "DCleaner",
+        "basePrice": 9457
+      },
+      {
+        "id": "5e2af02c86f7746d420957d4",
+        "name": "Pack of chlorine",
+        "shortName": "Chlorine",
+        "basePrice": 11000
+      },
+      {
+        "id": "5e2af22086f7746d3f3c33fa",
+        "name": "Tube of Poxeram cold welding",
+        "shortName": "Poxeram",
+        "basePrice": 19400
+      },
+      {
+        "id": "5e2af29386f7746d4159f077",
+        "name": "KEKTAPE duct tape",
+        "shortName": "KEK",
+        "basePrice": 24000
+      },
+      {
+        "id": "5e2af2bc86f7746d3f3c33fc",
+        "name": "Hunting matches",
+        "shortName": "HMatches",
+        "basePrice": 3800
+      },
+      {
+        "id": "5e2af37686f774755a234b65",
+        "name": "SurvL Survivor Lighter",
+        "shortName": "SurvL",
+        "basePrice": 16000
+      },
+      {
+        "id": "5e2af41e86f774755a234b67",
+        "name": "Cordura polyamide fabric",
+        "shortName": "Cordura",
+        "basePrice": 13200
+      },
+      {
+        "id": "5e2af47786f7746d404f3aaa",
+        "name": "Fleece fabric",
+        "shortName": "Fleece",
+        "basePrice": 4000
+      },
+      {
+        "id": "5e2af4a786f7746d3f3c3400",
+        "name": "Ripstop fabric",
+        "shortName": "Ripstop",
+        "basePrice": 5800
+      },
+      {
+        "id": "5e2af4d286f7746d4159f07a",
+        "name": "Aramid fiber fabric",
+        "shortName": "Aramid",
+        "basePrice": 8800
+      },
+      {
+        "id": "5e2af51086f7746d3f3c3402",
+        "name": "UZRGM grenade fuze",
+        "shortName": "Fuze",
+        "basePrice": 8100
+      },
+      {
+        "id": "5e54f62086f774219b0f1937",
+        "name": "Raven figurine",
+        "shortName": "Raven",
+        "basePrice": 48000
+      },
+      {
+        "id": "5e54f6af86f7742199090bf3",
+        "name": "Can of Dr. Lupo's coffee beans",
+        "shortName": "DrLupo's",
+        "basePrice": 52000
+      },
+      {
+        "id": "5f745ee30acaeb0d490d8c5b",
+        "name": "Veritas guitar pick",
+        "shortName": "Veritas",
+        "basePrice": 55000
+      },
+      {
+        "id": "60391a8b3364dc22b04d0ce5",
+        "name": "Can of thermite",
+        "shortName": "Thermite",
+        "basePrice": 52000
+      },
+      {
+        "id": "60391afc25aff57af81f7085",
+        "name": "Ratchet wrench",
+        "shortName": "Ratchet",
+        "basePrice": 124000
+      },
+      {
+        "id": "60391b0fb847c71012789415",
+        "name": "TP-200 TNT brick",
+        "shortName": "TP-200",
+        "basePrice": 35000
+      },
+      {
+        "id": "60b0f561c4449e4cb624c1d7",
+        "name": "LVNDMARK's rat poison",
+        "shortName": "Poison",
+        "basePrice": 50892
+      },
+      {
+        "id": "60b0f7057897d47c5b04ab94",
+        "name": "Loot Lord plushie",
+        "shortName": "Loot Lord",
+        "basePrice": 83029
+      },
+      {
+        "id": "619cbf476b8a1b37a54eebf8",
+        "name": "Military corrugated tube",
+        "shortName": "MTube",
+        "basePrice": 21263
+      },
+      {
+        "id": "619cbfccbedcde2f5b3f7bdd",
+        "name": "Pipe grip wrench",
+        "shortName": "PGW",
+        "basePrice": 132000
+      },
+      {
+        "id": "619cbfeb6b8a1b37a54eebfa",
+        "name": "Bulbex cable cutter",
+        "shortName": "Bulbex",
+        "basePrice": 105000
+      },
+      {
+        "id": "619cc01e0a7c3a1a2731940c",
+        "name": "Medical tools",
+        "shortName": "MedTools",
+        "basePrice": 7500
+      },
+      {
+        "id": "61bf7b6302b3924be92fa8c3",
+        "name": "Metal spare parts",
+        "shortName": "M.parts",
+        "basePrice": 5000
+      },
+      {
+        "id": "61bf83814088ec1a363d7097",
+        "name": "Sewing kit",
+        "shortName": "Krasavch.",
+        "basePrice": 38000
+      },
+      {
+        "id": "62a08f4c4f842e1bd12d9d62",
+        "name": "BEAR Buddy plush toy",
+        "shortName": "BEAR Buddy",
+        "basePrice": 86700
+      },
+      {
+        "id": "62a091170b9d3c46de5b6cf2",
+        "name": "Axel parrot figurine",
+        "shortName": "Axel",
+        "basePrice": 51000
+      },
+      {
+        "id": "62a09cb7a04c0c5c6e0a84f8",
+        "name": "Press pass (issued for NoiceGuy)",
+        "shortName": "Pass",
+        "basePrice": 50000
+      },
+      {
+        "id": "62a09cfe4f842e1bd12da3e4",
+        "name": "Golden egg",
+        "shortName": "Egg",
+        "basePrice": 68000
+      },
+      {
+        "id": "62a09ee4cf4a99369e262453",
+        "name": "Can of white salt",
+        "shortName": "Salt",
+        "basePrice": 8000
+      },
+      {
+        "id": "62a0a043cf4a99369e2624a5",
+        "name": "Bottle of OLOLO Multivitamins",
+        "shortName": "Vitamins",
+        "basePrice": 25090
+      },
+      {
+        "id": "62a0a098de7ac8199358053b",
+        "name": "Awl",
+        "shortName": "Awl",
+        "basePrice": 15274
+      },
+      {
+        "id": "62a0a0bb621468534a797ad5",
+        "name": "Set of files \"Master\"",
+        "shortName": "Master",
+        "basePrice": 35000
+      },
+      {
+        "id": "6389c6463485cf0eeb260715",
+        "name": "Pack of Arseniy buckwheat",
+        "shortName": "Buckwheat",
+        "basePrice": 22300
+      },
+      {
+        "id": "6389c6c7dbfd5e4b95197e68",
+        "name": "Aquapeps water purification tablets",
+        "shortName": "Aquapeps",
+        "basePrice": 30090
+      },
+      {
+        "id": "6389c70ca33d8c4cdf4932c6",
+        "name": "Electronic components",
+        "shortName": "EC",
+        "basePrice": 18000
+      },
+      {
+        "id": "6389c7750ef44505c87f5996",
+        "name": "Microcontroller board",
+        "shortName": "MB",
+        "basePrice": 100000
+      },
+      {
+        "id": "6389c7f115805221fb410466",
+        "name": "Far-forward GPS Signal Amplifier Unit",
+        "shortName": "GPSA",
+        "basePrice": 120000
+      },
+      {
+        "id": "6389c85357baa773a825b356",
+        "name": "Advanced current converter",
+        "shortName": "MCC",
+        "basePrice": 300000
+      },
+      {
+        "id": "63a0b208f444d32d6f03ea1e",
+        "name": "Fierce Blow sledgehammer",
+        "shortName": "Sledgehammer",
+        "basePrice": 132000
+      },
+      {
+        "id": "655c652d60d0ac437100fed7",
+        "name": "BEAR operative figurine",
+        "shortName": "BEAR",
+        "basePrice": 75000
+      },
+      {
+        "id": "655c663a6689c676ce57af85",
+        "name": "USEC operative figurine",
+        "shortName": "USEC",
+        "basePrice": 75000
+      },
+      {
+        "id": "655c669103999d3c810c025b",
+        "name": "Cultist figurine",
+        "shortName": "Cultist",
+        "basePrice": 100000
+      },
+      {
+        "id": "655c66e40b2de553b618d4b8",
+        "name": "Politician Mutkevich figurine",
+        "shortName": "Mutkevich",
+        "basePrice": 100000
+      },
+      {
+        "id": "655c673673a43e23e857aebd",
+        "name": "Scav figurine",
+        "shortName": "Scav",
+        "basePrice": 50000
+      },
+      {
+        "id": "655c67782a1356436041c9c5",
+        "name": "Ryzhy figurine",
+        "shortName": "Ryzhy",
+        "basePrice": 50000
+      },
+      {
+        "id": "655c67ab0d37ca5135388f4b",
+        "name": "Ded Moroz figurine",
+        "shortName": "Ded Moroz",
+        "basePrice": 100000
+      },
+      {
+        "id": "6638a5474e92f038531e210e",
+        "name": "Mr Kerman's cat hologram",
+        "shortName": "Mr Kerman",
+        "basePrice": 75000
+      },
+      {
+        "id": "6656560053eaaa7a23349c86",
+        "name": "Lega Medal",
+        "shortName": "Lega",
+        "basePrice": 900000
+      },
+      {
+        "id": "66571bf06a723f7f005a0619",
+        "name": "Locked equipment crate (Rare)",
+        "shortName": "Equipment (Rare)",
+        "basePrice": 0
+      },
+      {
+        "id": "66572b3f6a723f7f005a066c",
+        "name": "Locked weapon crate (Rare)",
+        "shortName": "Weapons (Rare)",
+        "basePrice": 0
+      },
+      {
+        "id": "66572b88ac60f009f270d1dc",
+        "name": "Locked supply crate (Rare)",
+        "shortName": "Supplies (Rare)",
+        "basePrice": 0
+      },
+      {
+        "id": "66572b8d80b1cd4b6a67847f",
+        "name": "Den figurine",
+        "shortName": "Den",
+        "basePrice": 75000
+      },
+      {
+        "id": "66572bb3ac60f009f270d1df",
+        "name": "Locked valuables crate (Rare)",
+        "shortName": "Valuables (Rare)",
+        "basePrice": 0
+      },
+      {
+        "id": "66572be36a723f7f005a066e",
+        "name": "Reshala figurine",
+        "shortName": "Reshala",
+        "basePrice": 100000
+      },
+      {
+        "id": "66572c82ad599021091c6118",
+        "name": "Killa figurine",
+        "shortName": "Killa",
+        "basePrice": 100000
+      },
+      {
+        "id": "66572cbdad599021091c611a",
+        "name": "Tagilla figurine",
+        "shortName": "Tagilla",
+        "basePrice": 100000
+      },
+      {
+        "id": "6658285190486915542256c4",
+        "name": "Locked equipment crate (Epic)",
+        "shortName": "Equipment (Epic)",
+        "basePrice": 0
+      },
+      {
+        "id": "66582889efd94e2d665b14a2",
+        "name": "Locked weapon crate (Epic)",
+        "shortName": "Weapons (Epic)",
+        "basePrice": 0
+      },
+      {
+        "id": "665828c44de4820934746ce4",
+        "name": "Locked supply crate (Epic)",
+        "shortName": "Supplies (Epic)",
+        "basePrice": 0
+      },
+      {
+        "id": "665828f490486915542256c6",
+        "name": "Locked valuables crate (Epic)",
+        "shortName": "Valuables (Epic)",
+        "basePrice": 0
+      },
+      {
+        "id": "66588b514de4820934746dc6",
+        "name": "Locked equipment crate (Common)",
+        "shortName": "Equipment (Common)",
+        "basePrice": 0
+      },
+      {
+        "id": "66588b6dcb48a73e674b2649",
+        "name": "Locked weapon crate (Common)",
+        "shortName": "Weapons (Common)",
+        "basePrice": 0
+      },
+      {
+        "id": "66588ba291f6e93c4c06efef",
+        "name": "Locked supply crate (Common)",
+        "shortName": "Supplies (Common)",
+        "basePrice": 0
+      },
+      {
+        "id": "66588bb047fbd536a674240e",
+        "name": "Locked valuables crate (Common)",
+        "shortName": "Valuables (Common)",
+        "basePrice": 0
+      },
+      {
+        "id": "6662e9aca7e0b43baa3d5f74",
+        "name": "Dogtag BEAR",
+        "shortName": "BEAR",
+        "basePrice": 900
+      },
+      {
+        "id": "6662e9cda7e0b43baa3d5f76",
+        "name": "Dogtag BEAR",
+        "shortName": "BEAR",
+        "basePrice": 900
+      },
+      {
+        "id": "6662e9f37fa79a6d83730fa0",
+        "name": "Dogtag USEC",
+        "shortName": "USEC",
+        "basePrice": 900
+      },
+      {
+        "id": "6662ea05f6259762c56f3189",
+        "name": "Dogtag USEC",
+        "shortName": "USEC",
+        "basePrice": 900
+      },
+      {
+        "id": "66b37ea4c5d72b0277488439",
+        "name": "Tamatthi kunai knife replica",
+        "shortName": "Tamatthi",
+        "basePrice": 85643
+      },
+      {
+        "id": "66b37eb4acff495a29492407",
+        "name": "Viibiin sneaker",
+        "shortName": "Viibiin",
+        "basePrice": 56745
+      },
+      {
+        "id": "66b37f114410565a8f6789e2",
+        "name": "Inseq gas pipe wrench",
+        "shortName": "Inseq",
+        "basePrice": 37573
+      },
+      {
+        "id": "66d9f7256916142b3b02276e",
+        "name": "Radar station spare parts",
+        "shortName": "Radar",
+        "basePrice": 50000
+      },
+      {
+        "id": "66d9f7e7099cf6adcc07a369",
+        "name": "KOSA UAV electronic jamming device",
+        "shortName": "KOSA",
+        "basePrice": 50000
+      },
+      {
+        "id": "66d9f8744827a77e870ecaf1",
+        "name": "GARY ZONT portable electronic warfare device",
+        "shortName": "EW unit",
+        "basePrice": 150000
+      },
+      {
+        "id": "67408903268737ef6908d432",
+        "name": "Contraband box",
+        "shortName": "Contraband",
+        "basePrice": 52000
+      },
+      {
+        "id": "67409848d0b2f8eb9b034db9",
+        "name": "Sealed box",
+        "shortName": "Sealed box",
+        "basePrice": 52000
+      },
+      {
+        "id": "6740987b89d5e1ddc603f4f0",
+        "name": "Locked case",
+        "shortName": "Locked case",
+        "basePrice": 52000
+      },
+      {
+        "id": "67449b6c89d5e1ddc603f504",
+        "name": "Case key",
+        "shortName": "Case key",
+        "basePrice": 32524
+      },
+      {
+        "id": "67586af7036d7f3da60c3612",
+        "name": "Jar of pickles",
+        "shortName": "Pickles",
+        "basePrice": 93435
+      },
+      {
+        "id": "67586b7e49c2fa592e0d8ed9",
+        "name": "Olivier salad box",
+        "shortName": "Salad",
+        "basePrice": 152521
+      },
+      {
+        "id": "67586bee39b1b82b0d0f9d06",
+        "name": "Special 40-degree fuel",
+        "shortName": "Fuel",
+        "basePrice": 123525
+      },
+      {
+        "id": "67586c61a0c49554ed0bb4a8",
+        "name": "SHYSHKA Christmas tree life extender",
+        "shortName": "SHYSHKA",
+        "basePrice": 86634
+      },
+      {
+        "id": "675dc9d37ae1a8792107ca96",
+        "name": "Dogtag BEAR",
+        "shortName": "BEAR",
+        "basePrice": 900
+      },
+      {
+        "id": "675dcb0545b1a2d108011b2b",
+        "name": "Dogtag BEAR",
+        "shortName": "BEAR",
+        "basePrice": 900
+      },
+      {
+        "id": "6764202ae307804338014c1a",
+        "name": "Dogtag USEC",
+        "shortName": "USEC",
+        "basePrice": 900
+      },
+      {
+        "id": "6764207f2fa5e32733055c4a",
+        "name": "Dogtag USEC",
+        "shortName": "USEC",
+        "basePrice": 900
+      },
+      {
+        "id": "customdogtags12345678910",
+        "name": "Dogtag",
+        "shortName": "Dogtag",
+        "basePrice": 900
+      }
+    ]
+  }
+}
