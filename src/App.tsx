@@ -67,7 +67,10 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
             for (const variant of mistakeVariants) {
               // Improved partial matching - check if the cleaned word contains the variant
               // or if the variant contains the cleaned word (for partial matches like "EDX" in "LEDX")
-              if (cleanedWord.includes(variant) || variant.includes(cleanedWord)) {
+              if (
+                cleanedWord.includes(variant) ||
+                variant.includes(cleanedWord)
+              ) {
                 updateDetectedItems(detectedItems, item);
                 break;
               }
@@ -77,8 +80,13 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         // Check if the word is a substring of the item name (for partial matches)
         // This helps with cases where OCR only captures part of a longer item name
-        const simplifiedItemName = item.shortName.toLowerCase().replace(/\s+/g, "");
-        if (simplifiedItemName.includes(cleanedWord) || cleanedWord.includes(simplifiedItemName)) {
+        const simplifiedItemName = item.shortName
+          .toLowerCase()
+          .replace(/\s+/g, "");
+        if (
+          simplifiedItemName.includes(cleanedWord) ||
+          cleanedWord.includes(simplifiedItemName)
+        ) {
           // Only match if the partial match is substantial (at least 50% of the item name)
           if (cleanedWord.length >= simplifiedItemName.length * 0.5) {
             updateDetectedItems(detectedItems, item);
@@ -93,7 +101,11 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   return Array.from(detectedItems.values());
 };
 
-const updateDetectedItems = (detectedItems: Map<string, Item>, itemData: ItemData, quantity = 1) => {
+const updateDetectedItems = (
+  detectedItems: Map<string, Item>,
+  itemData: ItemData,
+  quantity = 1
+) => {
   if (detectedItems.has(itemData.id)) {
     const existingItem = detectedItems.get(itemData.id)!;
     existingItem.quantity += quantity;
@@ -493,6 +505,8 @@ const App = () => {
       tessjs_create_tsv: "1",
     }
   );
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   // For scaling bounding boxes
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -662,6 +676,169 @@ const App = () => {
     [itemData, ocrMethod, googleVisionApiKey, tesseractSettings]
   );
 
+  const handleClipboardPaste = useCallback(
+    async (event: ClipboardEvent) => {
+      // Check if we have image data in the clipboard
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      // Find the first image item in the clipboard
+      let imageItem = null;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          imageItem = items[i];
+          break;
+        }
+      }
+
+      // If no image found in clipboard, do nothing
+      if (!imageItem) return;
+
+      // Get the image as a file
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      // Process the image
+      setIsLoading(true);
+      setProgress(0);
+      setError(null);
+      setOcrWords([]);
+      try {
+        const imageUrl = URL.createObjectURL(file);
+        setUploadedImage(imageUrl);
+
+        if (ocrMethod === "googleVision") {
+          if (!googleVisionApiKey) {
+            throw new Error(
+              "Google Cloud Vision API key is required. Please set your API key."
+            );
+          }
+
+          const extractedText = await processImageWithGoogleVision(
+            file,
+            googleVisionApiKey,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else if (ocrMethod === "cleanTesseract") {
+          const extractedText = await processImageWithCleanTesseract(
+            file,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else {
+          // Default Tesseract
+          const extractedText = await processImageWithTesseract(
+            file,
+            (progress) => setProgress(progress),
+            tesseractSettings
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        }
+      } catch (err) {
+        console.error("Error processing image:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An unknown error occurred while processing the image."
+        );
+        setItemList([]);
+      } finally {
+        setIsLoading(false);
+        setProgress(0);
+      }
+    },
+    [itemData, ocrMethod, googleVisionApiKey, tesseractSettings]
+  );
+
+  // Add event listener for clipboard paste
+  useEffect(() => {
+    document.addEventListener("paste", handleClipboardPaste);
+
+    // Add event listeners for Ctrl key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Control") {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Control") {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    // Add window blur event to reset Ctrl state
+    const handleBlur = () => {
+      setIsCtrlPressed(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.removeEventListener("paste", handleClipboardPaste);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [handleClipboardPaste]);
+
+  const handleDragOver = useCallback(
+    (event: React.DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragging(true);
+    },
+    []
+  );
+
+  const handleDragLeave = useCallback(
+    (event: React.DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragging(false);
+    },
+    []
+  );
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLLabelElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragging(false);
+
+      if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        const file = event.dataTransfer.files[0];
+        if (file.type.startsWith("image/")) {
+          // Create a synthetic event object to reuse handleFileUpload
+          const syntheticEvent = {
+            target: {
+              files: [file],
+              value: "",
+            },
+          } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+          handleFileUpload(syntheticEvent);
+        }
+      }
+    },
+    [handleFileUpload]
+  );
+
   const handleRescan = useCallback(async () => {
     if (!uploadedImage) return;
     setIsLoading(true);
@@ -734,7 +911,7 @@ const App = () => {
         }`}
       >
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Tarkov Item Scanner</h1>
+          <h1 className="text-2xl font-bold">Tarkov Stash Scanner</h1>
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-full ${
@@ -763,10 +940,21 @@ const App = () => {
           <div className="flex items-center justify-center w-full">
             <label
               className={`flex flex-col w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                darkMode
+                isDragging
+                  ? darkMode
+                    ? "border-blue-500 bg-gray-700"
+                    : "border-blue-500 bg-blue-50"
+                  : isCtrlPressed
+                  ? darkMode
+                    ? "border-green-500 bg-gray-700"
+                    : "border-green-500 bg-green-50"
+                  : darkMode
                   ? "border-gray-600 hover:bg-gray-700"
                   : "border-gray-300 hover:bg-gray-50"
-              }`}
+              } transition-colors duration-200`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <svg
@@ -790,6 +978,14 @@ const App = () => {
                   and drop
                 </p>
                 <p className="text-xs">PNG, JPG, or JPEG</p>
+                <p
+                  className={`text-xs mt-1 ${
+                    isCtrlPressed ? "font-bold text-green-500" : ""
+                  }`}
+                >
+                  <span className="font-semibold">Or press Ctrl+V</span> to
+                  paste from clipboard
+                </p>
               </div>
               <input
                 type="file"
@@ -825,7 +1021,7 @@ const App = () => {
                   htmlFor="tesseract"
                   className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
                 >
-                  Tesseract.js (Advanced)
+                  Tesseract (Advanced)
                 </label>
               </div>
               <div className="flex items-center">
@@ -842,7 +1038,7 @@ const App = () => {
                   htmlFor="clean-tesseract"
                   className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
                 >
-                  Clean Tesseract (Simple)
+                  Tesseract (Simple)
                 </label>
               </div>
               <div className="flex items-center">
@@ -1279,7 +1475,7 @@ const App = () => {
             )}
           </>
         )}
-        <div className="flex justify-center">
+        <div className="flex justify-center mt-6">
           <button
             onClick={handleRescan}
             className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
