@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { ArrowUpDown, Moon, Sun } from "lucide-react";
-import { createWorker, createScheduler, Scheduler } from "tesseract.js";
+import { createWorker, createScheduler, Scheduler, Worker } from "tesseract.js";
 import { ItemData } from "./data/items";
 
 interface Item {
@@ -21,99 +21,95 @@ interface Item {
   basePrice: number;
 }
 
-const processOcrResults = (text: string, items: ItemData[]): Item[] => {
+const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   console.log("Processing OCR results...");
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  // Split by newlines to process each line separately
+  const lines = ocrText.split("\n").filter((line) => line.trim().length > 0);
   console.log(`Found ${lines.length} text lines to process`);
 
-  const itemMap = new Map<string, ItemData>();
-
-  items.forEach((item) => {
-    const shortName = item.shortName.toLowerCase();
-    itemMap.set(shortName, item);
-    itemMap.set(shortName.replace(/\s+/g, ""), item);
-    itemMap.set(shortName.replace(/[^a-z0-9]/g, ""), item);
-    itemMap.set(shortName.replace(/[^a-z0-9]/g, "").replace(/\s+/g, ""), item);
-
-    if (/\d/.test(shortName)) {
-      const withXInsteadOfTimes = shortName.replace(/[×x]/g, "x");
-      itemMap.set(withXInsteadOfTimes, item);
-      itemMap.set(withXInsteadOfTimes.replace(/\s+/g, ""), item);
-    }
-
-    const commonOcrMistakes: [string, string[]][] = [
-      ["LEDX", ["ledx", "led"]],
-      ["GPU", ["gpu", "gpx"]],
-      ["SSD", ["ssd", "sso"]],
-      ["CPU", ["cpu"]],
-      ["CPU fan", ["cpufan", "cpu fan"]],
-      ["Lion", ["lion"]],
-      ["Roler", ["roler"]],
-      ["M.parts", ["mparts", "m.parts"]],
-      ["Diary", ["diary"]],
-      ["Hose", ["hose"]],
-      ["Helix", ["helix"]],
-    ];
-
-    commonOcrMistakes.forEach(([key, mistakes]) => {
-      if (item.shortName === key) {
-        mistakes.forEach((mistake) => itemMap.set(mistake, item));
-      }
-    });
-  });
-
+  // Process each line to extract item information
   const detectedItems = new Map<string, Item>();
 
-  lines.forEach((line) => {
-    const normalizedLine = line.toLowerCase();
-    // Use a Set to ensure we only count each item once per line
-    const processedItemIds = new Set<string>();
+  for (const line of lines) {
+    // Split the line into words and process each word
+    const words = line.split(/\s+/).filter((word) => word.length > 0);
 
-    for (const [itemKey, itemData] of itemMap.entries()) {
-      if (itemKey.length < 2) continue;
-      if (processedItemIds.has(itemData.id)) continue;
+    for (const word of words) {
+      // Clean the word to remove special characters
+      const cleanedWord = word.replace(/[^\w]/g, "").toLowerCase();
+      if (cleanedWord.length < 2) continue; // Skip very short words
 
-      if (normalizedLine.includes(itemKey)) {
-        let quantity = 1;
-        const quantityMatch = normalizedLine.match(/(\d+)\s*[x×]|[x×]\s*(\d+)/);
-        if (quantityMatch) {
-          const quantityStr = quantityMatch[1] || quantityMatch[2];
-          quantity = parseInt(quantityStr, 10) || 1;
-        } else {
-          // Count occurrences of this key in the line
-          const regex = new RegExp(`\\b${itemKey}\\b`, "g");
-          const matches = normalizedLine.match(regex);
-          if (matches && matches.length > 1) {
-            quantity = matches.length;
+      // Check against known items
+      for (const item of items) {
+        // Check for exact match first
+        if (cleanedWord === item.shortName.toLowerCase().replace(/\s+/g, "")) {
+          updateDetectedItems(detectedItems, item);
+          break;
+        }
+
+        // Check for common OCR mistakes
+        const commonOcrMistakes: [string, string[]][] = [
+          ["LEDX", ["ledx", "led", "edx"]],
+          ["GPU", ["gpu", "gpx"]],
+          ["SSD", ["ssd", "sso"]],
+          ["CPU", ["cpu"]],
+          ["CPU fan", ["cpufan", "cpu fan"]],
+          ["Lion", ["lion"]],
+          ["Roler", ["roler"]],
+          ["M.parts", ["mparts", "m.parts"]],
+          ["Diary", ["diary"]],
+          ["Hose", ["hose"]],
+          ["Helix", ["helix"]],
+        ];
+
+        for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
+          if (correctItem.toLowerCase() === item.shortName.toLowerCase()) {
+            for (const variant of mistakeVariants) {
+              // Improved partial matching - check if the cleaned word contains the variant
+              // or if the variant contains the cleaned word (for partial matches like "EDX" in "LEDX")
+              if (cleanedWord.includes(variant) || variant.includes(cleanedWord)) {
+                updateDetectedItems(detectedItems, item);
+                break;
+              }
+            }
           }
         }
-        processedItemIds.add(itemData.id);
 
-        if (detectedItems.has(itemData.id)) {
-          const existingItem = detectedItems.get(itemData.id)!;
-          existingItem.quantity += quantity;
-        } else {
-          detectedItems.set(itemData.id, {
-            id: itemData.id,
-            name: itemData.name,
-            shortName: itemData.shortName,
-            iconLink: itemData.iconLink,
-            wikiLink: itemData.wikiLink,
-            imageLink: itemData.imageLink,
-            gridImageLink: itemData.gridImageLink,
-            basePrice: itemData.basePrice,
-            quantity,
-          });
+        // Check if the word is a substring of the item name (for partial matches)
+        // This helps with cases where OCR only captures part of a longer item name
+        const simplifiedItemName = item.shortName.toLowerCase().replace(/\s+/g, "");
+        if (simplifiedItemName.includes(cleanedWord) || cleanedWord.includes(simplifiedItemName)) {
+          // Only match if the partial match is substantial (at least 50% of the item name)
+          if (cleanedWord.length >= simplifiedItemName.length * 0.5) {
+            updateDetectedItems(detectedItems, item);
+            break;
+          }
         }
       }
     }
-  });
+  }
 
   console.log(`Detected ${detectedItems.size} unique items`);
   return Array.from(detectedItems.values());
+};
+
+const updateDetectedItems = (detectedItems: Map<string, Item>, itemData: ItemData, quantity = 1) => {
+  if (detectedItems.has(itemData.id)) {
+    const existingItem = detectedItems.get(itemData.id)!;
+    existingItem.quantity += quantity;
+  } else {
+    detectedItems.set(itemData.id, {
+      id: itemData.id,
+      name: itemData.name,
+      shortName: itemData.shortName,
+      iconLink: itemData.iconLink,
+      wikiLink: itemData.wikiLink,
+      imageLink: itemData.imageLink,
+      gridImageLink: itemData.gridImageLink,
+      basePrice: itemData.basePrice,
+      quantity,
+    });
+  }
 };
 
 const preprocessImage = async (imageUrl: string): Promise<string> => {
@@ -259,31 +255,64 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-let scheduler: Scheduler | null = null;
-
-const initTesseract = async (): Promise<Scheduler> => {
-  if (scheduler) return scheduler;
-  console.log("Initializing Tesseract.js scheduler...");
-  scheduler = createScheduler();
+const processImageWithCleanTesseract = async (
+  file: File,
+  onProgress: (progress: number) => void
+): Promise<{
+  text: string;
+  words: Array<{
+    text: string;
+    bbox: { x0: number; y0: number; x1: number; y1: number };
+  }>;
+}> => {
+  console.log("Processing image with Clean Tesseract.js...");
   try {
-    const worker1 = await createWorker("eng");
-    const worker2 = await createWorker("eng");
-    scheduler.addWorker(worker1);
-    scheduler.addWorker(worker2);
-    console.log("Tesseract.js initialized with 2 workers");
-    return scheduler;
-  } catch (error) {
-    console.error("Failed to initialize Tesseract workers:", error);
-    throw error;
-  }
-};
+    onProgress(10);
+    // Convert file to data URL
+    const reader = new FileReader();
+    const imageData = await new Promise<string>((resolve) => {
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
+    onProgress(20);
 
-const terminateTesseract = async (): Promise<void> => {
-  if (scheduler) {
-    console.log("Terminating Tesseract.js workers...");
-    await scheduler.terminate();
-    scheduler = null;
-    console.log("Tesseract.js workers terminated");
+    // Create a worker - in newer versions, workers come pre-loaded with language data
+    const worker = await createWorker("eng");
+
+    // Log progress manually at key points
+    onProgress(50);
+
+    // Recognize text directly (no need for load, loadLanguage, or initialize)
+    const response = await worker.recognize(imageData);
+    onProgress(90);
+
+    // Format words to match the expected output format
+    const words = response.data.words.map(
+      (word: {
+        text: string;
+        bbox: { x0: number; y0: number; x1: number; y1: number };
+      }) => ({
+        text: word.text,
+        bbox: {
+          x0: word.bbox.x0,
+          y0: word.bbox.y0,
+          x1: word.bbox.x1,
+          y1: word.bbox.y1,
+        },
+      })
+    );
+
+    // Terminate worker
+    await worker.terminate();
+
+    onProgress(95);
+    console.log("Clean Tesseract.js OCR completed");
+    return { text: response.data.text, words };
+  } catch (error) {
+    console.error("Clean Tesseract.js OCR failed:", error);
+    throw error;
   }
 };
 
@@ -322,7 +351,7 @@ const processImageWithTesseract = async (
         tessjs_create_tsv: tesseractSettings.tessjs_create_tsv,
         tessedit_char_whitelist:
           "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,/\\()[]{}:;\"'?!@#$%^&*+=<>~` ",
-      },
+      } as TesseractJobOptions,
       {}
     );
 
@@ -342,6 +371,35 @@ const processImageWithTesseract = async (
   } catch (error) {
     console.error("Tesseract.js OCR failed:", error);
     throw error;
+  }
+};
+
+let scheduler: Scheduler | null = null;
+
+const initTesseract = async (): Promise<Scheduler> => {
+  if (scheduler) return scheduler;
+  console.log("Initializing Tesseract.js scheduler...");
+  scheduler = createScheduler();
+  try {
+    // Create workers with language pre-loaded
+    const worker1 = await createWorker("eng");
+    const worker2 = await createWorker("eng");
+    scheduler.addWorker(worker1);
+    scheduler.addWorker(worker2);
+    console.log("Tesseract.js initialized with 2 workers");
+    return scheduler;
+  } catch (error) {
+    console.error("Failed to initialize Tesseract workers:", error);
+    throw error;
+  }
+};
+
+const terminateTesseract = async (): Promise<void> => {
+  if (scheduler) {
+    console.log("Terminating Tesseract.js workers...");
+    await scheduler.terminate();
+    scheduler = null;
+    console.log("Tesseract.js workers terminated");
   }
 };
 
@@ -382,6 +440,14 @@ interface TesseractSettings {
   tessjs_create_tsv: string;
 }
 
+interface TesseractJobOptions {
+  tessedit_pageseg_mode: string;
+  tessedit_ocr_engine_mode: string;
+  tessjs_create_hocr: string;
+  tessjs_create_tsv: string;
+  tessedit_char_whitelist: string;
+}
+
 const App = () => {
   const [itemData, setItemData] = useState<ItemData[]>([]);
   const [itemList, setItemList] = useState<Item[]>([]);
@@ -394,9 +460,14 @@ const App = () => {
       ? savedMode === "true"
       : window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
-  const [useGoogleVision, setUseGoogleVision] = useState(() => {
-    const savedSetting = localStorage.getItem("useGoogleVision");
-    return savedSetting !== null ? savedSetting === "true" : false;
+  const [ocrMethod, setOcrMethod] = useState<
+    "tesseract" | "cleanTesseract" | "googleVision"
+  >(() => {
+    const savedMethod = localStorage.getItem("ocrMethod");
+    return (
+      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision") ||
+      "tesseract"
+    );
   });
   const [googleVisionApiKey, setGoogleVisionApiKey] = useState(
     () => localStorage.getItem("googleVisionApiKey") || ""
@@ -472,16 +543,16 @@ const App = () => {
     });
   }, []);
 
-  const toggleOcrMethod = useCallback(() => {
-    setUseGoogleVision((prev) => {
-      const newValue = !prev;
-      localStorage.setItem("useGoogleVision", newValue.toString());
-      if (newValue && !googleVisionApiKey) {
+  const toggleOcrMethod = useCallback(
+    (method: "tesseract" | "cleanTesseract" | "googleVision") => {
+      setOcrMethod(method);
+      localStorage.setItem("ocrMethod", method);
+      if (method === "googleVision" && !googleVisionApiKey) {
         setShowApiKeyInput(true);
       }
-      return newValue;
-    });
-  }, [googleVisionApiKey]);
+    },
+    [googleVisionApiKey]
+  );
 
   const saveApiKey = useCallback((key: string) => {
     setGoogleVisionApiKey(key);
@@ -495,7 +566,7 @@ const App = () => {
 
   const requestSort = (key: keyof Item) => {
     let direction: "ascending" | "descending" = "ascending";
-    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+    if (sortConfig?.key === key && sortConfig.direction === "ascending") {
       direction = "descending";
     }
     console.log(`🔄 Sorting items by ${key} in ${direction} order`);
@@ -533,27 +604,47 @@ const App = () => {
       try {
         const imageUrl = URL.createObjectURL(file);
         setUploadedImage(imageUrl);
-        if (useGoogleVision && !googleVisionApiKey) {
-          throw new Error(
-            "Google Cloud Vision API key is required. Please set your API key."
-          );
-        }
-        const extractedText = useGoogleVision
-          ? await processImageWithGoogleVision(
-              file,
-              googleVisionApiKey,
-              (progress) => setProgress(progress)
-            )
-          : await processImageWithTesseract(
-              file,
-              (progress) => setProgress(progress),
-              tesseractSettings
+
+        if (ocrMethod === "googleVision") {
+          if (!googleVisionApiKey) {
+            throw new Error(
+              "Google Cloud Vision API key is required. Please set your API key."
             );
-        console.log("OCR text extracted:", extractedText.text);
-        const items = processOcrResults(extractedText.text, itemData);
-        console.log("Detected items:", items);
-        setItemList(items);
-        setOcrWords(extractedText.words);
+          }
+
+          const extractedText = await processImageWithGoogleVision(
+            file,
+            googleVisionApiKey,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else if (ocrMethod === "cleanTesseract") {
+          const extractedText = await processImageWithCleanTesseract(
+            file,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else {
+          // Default Tesseract
+          const extractedText = await processImageWithTesseract(
+            file,
+            (progress) => setProgress(progress),
+            tesseractSettings
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        }
       } catch (err) {
         console.error("Error processing image:", err);
         setError(
@@ -568,7 +659,7 @@ const App = () => {
         event.target.value = "";
       }
     },
-    [itemData, useGoogleVision, googleVisionApiKey, tesseractSettings]
+    [itemData, ocrMethod, googleVisionApiKey, tesseractSettings]
   );
 
   const handleRescan = useCallback(async () => {
@@ -579,13 +670,29 @@ const App = () => {
     setOcrWords([]);
     try {
       const file = await fetch(uploadedImage).then((res) => res.blob());
-      const extractedText = await processImageWithTesseract(
-        new File([file], "image.png", { type: "image/png" }),
-        (progress) => setProgress(progress),
-        tesseractSettings
-      );
+      let extractedText;
+
+      if (ocrMethod === "cleanTesseract") {
+        extractedText = await processImageWithCleanTesseract(
+          new File([file], "image.png", { type: "image/png" }),
+          (progress) => setProgress(progress)
+        );
+      } else if (ocrMethod === "googleVision") {
+        extractedText = await processImageWithGoogleVision(
+          new File([file], "image.png", { type: "image/png" }),
+          googleVisionApiKey,
+          (progress) => setProgress(progress)
+        );
+      } else {
+        extractedText = await processImageWithTesseract(
+          new File([file], "image.png", { type: "image/png" }),
+          (progress) => setProgress(progress),
+          tesseractSettings
+        );
+      }
+
       console.log("OCR text extracted:", extractedText.text);
-      const items = processOcrResults(extractedText.text, itemData);
+      const items = processOcrText(extractedText.text, itemData);
       console.log("Detected items:", items);
       setItemList(items);
       setOcrWords(extractedText.words);
@@ -601,7 +708,13 @@ const App = () => {
       setIsLoading(false);
       setProgress(0);
     }
-  }, [itemData, uploadedImage, tesseractSettings]);
+  }, [
+    itemData,
+    uploadedImage,
+    tesseractSettings,
+    ocrMethod,
+    googleVisionApiKey,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -704,15 +817,32 @@ const App = () => {
                   id="tesseract"
                   name="ocr-method"
                   value="tesseract"
-                  checked={!useGoogleVision}
-                  onChange={toggleOcrMethod}
+                  checked={ocrMethod === "tesseract"}
+                  onChange={() => toggleOcrMethod("tesseract")}
                   className="mr-2"
                 />
                 <label
                   htmlFor="tesseract"
                   className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
                 >
-                  Tesseract.js (Local)
+                  Tesseract.js (Advanced)
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="clean-tesseract"
+                  name="ocr-method"
+                  value="cleanTesseract"
+                  checked={ocrMethod === "cleanTesseract"}
+                  onChange={() => toggleOcrMethod("cleanTesseract")}
+                  className="mr-2"
+                />
+                <label
+                  htmlFor="clean-tesseract"
+                  className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                >
+                  Clean Tesseract (Simple)
                 </label>
               </div>
               <div className="flex items-center">
@@ -720,9 +850,9 @@ const App = () => {
                   type="radio"
                   id="google-vision"
                   name="ocr-method"
-                  value="google-vision"
-                  checked={useGoogleVision}
-                  onChange={toggleOcrMethod}
+                  value="googleVision"
+                  checked={ocrMethod === "googleVision"}
+                  onChange={() => toggleOcrMethod("googleVision")}
                   className="mr-2"
                 />
                 <label
@@ -735,7 +865,7 @@ const App = () => {
             </div>
           </div>
 
-          {useGoogleVision && (
+          {ocrMethod === "googleVision" && (
             <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
               <label
                 className={`block text-sm font-medium ${
@@ -794,88 +924,90 @@ const App = () => {
           )}
         </div>
 
-        <div className="flex flex-col gap-2 p-2 border rounded-lg bg-card">
-          <h3 className="text-sm font-semibold">Tesseract Settings</h3>
-          <div className="grid grid-cols-1 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium">
-                Page Segmentation Mode
-              </label>
-              <select
-                className="bg-gray-700 text-gray-200 p-1"
-                value={tesseractSettings.tessedit_pageseg_mode}
-                onChange={(e) =>
-                  setTesseractSettings((prev) => ({
-                    ...prev,
-                    tessedit_pageseg_mode: e.target.value,
-                  }))
-                }
-              >
-                <option value="6">Uniform text block</option>
-                <option value="3">Column</option>
-                <option value="4">Single block</option>
-                <option value="5">Single column</option>
-                <option value="7">Single line</option>
-                <option value="8">Single word</option>
-                <option value="9">Single word in circle</option>
-                <option value="10">Single character</option>
-                <option value="11">Sparse text</option>
-                <option value="12">Sparse text with OSD</option>
-                <option value="13">Raw line</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">OCR Engine Mode</label>
-              <select
-                className="bg-gray-700 text-gray-200 p-1"
-                value={tesseractSettings.tessedit_ocr_engine_mode}
-                onChange={(e) =>
-                  setTesseractSettings((prev) => ({
-                    ...prev,
-                    tessedit_ocr_engine_mode: e.target.value,
-                  }))
-                }
-              >
-                <option value="0">Legacy engine</option>
-                <option value="1">Neural nets LSTM</option>
-                <option value="2">Legacy + LSTM</option>
-                <option value="3">Default</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Create HOCR</label>
-              <select
-                className="bg-gray-700 text-gray-200 p-1"
-                value={tesseractSettings.tessjs_create_hocr}
-                onChange={(e) =>
-                  setTesseractSettings((prev) => ({
-                    ...prev,
-                    tessjs_create_hocr: e.target.value,
-                  }))
-                }
-              >
-                <option value="0">Disabled</option>
-                <option value="1">Enabled</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Create TSV</label>
-              <select
-                className="bg-gray-700 text-gray-200 p-1"
-                value={tesseractSettings.tessjs_create_tsv}
-                onChange={(e) =>
-                  setTesseractSettings((prev) => ({
-                    ...prev,
-                    tessjs_create_tsv: e.target.value,
-                  }))
-                }
-              >
-                <option value="0">Disabled</option>
-                <option value="1">Enabled</option>
-              </select>
+        {ocrMethod === "tesseract" && (
+          <div className="flex flex-col gap-2 p-2 border rounded-lg bg-card">
+            <h3 className="text-sm font-semibold">Tesseract Settings</h3>
+            <div className="grid grid-cols-1 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">
+                  Page Segmentation Mode
+                </label>
+                <select
+                  className="bg-gray-700 text-gray-200 p-1"
+                  value={tesseractSettings.tessedit_pageseg_mode}
+                  onChange={(e) =>
+                    setTesseractSettings((prev) => ({
+                      ...prev,
+                      tessedit_pageseg_mode: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="6">Uniform text block</option>
+                  <option value="3">Column</option>
+                  <option value="4">Single block</option>
+                  <option value="5">Single column</option>
+                  <option value="7">Single line</option>
+                  <option value="8">Single word</option>
+                  <option value="9">Single word in circle</option>
+                  <option value="10">Single character</option>
+                  <option value="11">Sparse text</option>
+                  <option value="12">Sparse text with OSD</option>
+                  <option value="13">Raw line</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">OCR Engine Mode</label>
+                <select
+                  className="bg-gray-700 text-gray-200 p-1"
+                  value={tesseractSettings.tessedit_ocr_engine_mode}
+                  onChange={(e) =>
+                    setTesseractSettings((prev) => ({
+                      ...prev,
+                      tessedit_ocr_engine_mode: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="0">Legacy engine</option>
+                  <option value="1">Neural nets LSTM</option>
+                  <option value="2">Legacy + LSTM</option>
+                  <option value="3">Default</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Create HOCR</label>
+                <select
+                  className="bg-gray-700 text-gray-200 p-1"
+                  value={tesseractSettings.tessjs_create_hocr}
+                  onChange={(e) =>
+                    setTesseractSettings((prev) => ({
+                      ...prev,
+                      tessjs_create_hocr: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="0">Disabled</option>
+                  <option value="1">Enabled</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Create TSV</label>
+                <select
+                  className="bg-gray-700 text-gray-200 p-1"
+                  value={tesseractSettings.tessjs_create_tsv}
+                  onChange={(e) =>
+                    setTesseractSettings((prev) => ({
+                      ...prev,
+                      tessjs_create_tsv: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="0">Disabled</option>
+                  <option value="1">Enabled</option>
+                </select>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div
           className={`mb-4 p-3 rounded-lg ${
