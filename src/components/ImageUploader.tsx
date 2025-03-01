@@ -5,6 +5,7 @@ interface ImageUploaderProps {
   isDragging: boolean;
   setIsDragging: (dragging: boolean) => void;
   isCtrlPressed: boolean;
+  onUseExample: () => void;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
@@ -12,6 +13,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   isDragging,
   setIsDragging,
   isCtrlPressed,
+  onUseExample,
 }) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,6 +92,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           />
         </label>
       </div>
+      <button
+        onClick={onUseExample}
+        className="mt-2 w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center justify-center py-1"
+      >
+        <span>Use example image</span>
+      </button>
     </div>
   );
 };

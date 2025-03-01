@@ -11,7 +11,6 @@ import {
   createScheduler,
   Scheduler,
   RecognizeOptions,
-  Worker,
 } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -65,18 +64,18 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         // Check for common OCR mistakes
         const commonOcrMistakes: [string, string[]][] = [
-          ["LEDX", ["ledx", "led"]],
-          ["GPU", ["gpu", "gpx"]],
-          ["SSD", ["ssd", "sso"]],
-          ["CPU", ["cpu"]],
-          ["CPU fan", ["cpufan", "cpu fan"]],
-          ["Lion", ["lion"]],
-          ["Roler", ["roler"]],
-          ["M.parts", ["mparts", "m.parts"]],
-          ["Diary", ["diary"]],
-          ["Hose", ["hose"]],
-          ["Helix", ["helix"]],
-          ["H2O2", ["H202", "h202", "h2o2", "2O2"]],
+          // ["LEDX", ["ledx", "led"]],
+          // ["GPU", ["gpu", "gpx"]],
+          // ["SSD", ["ssd", "sso"]],
+          // ["CPU", ["cpu"]],
+          // ["CPU fan", ["cpufan", "cpu fan"]],
+          // ["Lion", ["lion"]],
+          // ["Roler", ["roler"]],
+          // ["M.parts", ["mparts", "m.parts"]],
+          // ["Diary", ["diary"]],
+          // ["Hose", ["hose"]],
+          // ["Helix", ["helix"]],
+          ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
         ];
 
         for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
@@ -354,17 +353,9 @@ interface CustomRecognizeOptions extends Partial<RecognizeOptions> {
   logger?: (m: { status: string; progress?: number }) => void;
 }
 
-interface TesseractSettings {
-  tessedit_pageseg_mode: string;
-  tessedit_ocr_engine_mode: string;
-  tessjs_create_hocr: string;
-  tessjs_create_tsv: string;
-}
-
 const processImageWithTesseract = async (
   file: File,
-  onProgress: (progress: number) => void,
-  tesseractSettings: TesseractSettings
+  onProgress: (progress: number) => void
 ): Promise<{
   text: string;
   words: Array<{
@@ -387,10 +378,10 @@ const processImageWithTesseract = async (
     onProgress(30);
 
     const jobOptions: CustomRecognizeOptions = {
-      tessedit_pageseg_mode: tesseractSettings.tessedit_pageseg_mode,
-      tessedit_ocr_engine_mode: tesseractSettings.tessedit_ocr_engine_mode,
-      tessjs_create_hocr: tesseractSettings.tessjs_create_hocr === "1",
-      tessjs_create_tsv: tesseractSettings.tessjs_create_tsv === "1",
+      tessedit_pageseg_mode: "6",
+      tessedit_ocr_engine_mode: "1",
+      tessjs_create_hocr: true,
+      tessjs_create_tsv: true,
       logger: (m: { status: string; progress?: number }) => {
         if (m.status === "recognizing text") {
           onProgress(30 + (m.progress || 0) * 70);
@@ -506,14 +497,6 @@ const AppContent: React.FC = () => {
     key: keyof Item | null;
     direction: "ascending" | "descending";
   }>({ key: null, direction: "ascending" });
-  const [tesseractSettings, setTesseractSettings] = useState<TesseractSettings>(
-    {
-      tessedit_pageseg_mode: "6",
-      tessedit_ocr_engine_mode: "1",
-      tessjs_create_hocr: "1",
-      tessjs_create_tsv: "1",
-    }
-  );
   const [isDragging, setIsDragging] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
@@ -651,8 +634,7 @@ const AppContent: React.FC = () => {
           // Default Tesseract
           const extractedText = await processImageWithTesseract(
             file,
-            (progress) => setProgress(progress),
-            tesseractSettings
+            (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
           const items = processOcrText(extractedText.text, itemData);
@@ -674,7 +656,7 @@ const AppContent: React.FC = () => {
         event.target.value = "";
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey, tesseractSettings]
+    [itemData, ocrMethod, googleVisionApiKey]
   );
 
   const handleClipboardPaste = useCallback(
@@ -739,8 +721,7 @@ const AppContent: React.FC = () => {
           // Default Tesseract
           const extractedText = await processImageWithTesseract(
             file,
-            (progress) => setProgress(progress),
-            tesseractSettings
+            (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
           const items = processOcrText(extractedText.text, itemData);
@@ -761,14 +742,18 @@ const AppContent: React.FC = () => {
         setProgress(0);
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey, tesseractSettings]
+    [itemData, ocrMethod, googleVisionApiKey]
   );
 
-  // Add event listener for clipboard paste
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
   useEffect(() => {
     document.addEventListener("paste", handleClipboardPaste);
 
-    // Add event listeners for Ctrl key
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Control") {
         setIsCtrlPressed(true);
@@ -781,7 +766,6 @@ const AppContent: React.FC = () => {
       }
     };
 
-    // Add window blur event to reset Ctrl state
     const handleBlur = () => {
       setIsCtrlPressed(false);
     };
@@ -797,12 +781,6 @@ const AppContent: React.FC = () => {
       window.removeEventListener("blur", handleBlur);
     };
   }, [handleClipboardPaste]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -834,40 +812,58 @@ const AppContent: React.FC = () => {
     [handleFileUpload]
   );
 
-  const handleRescan = useCallback(async () => {
-    if (!uploadedImage) return;
+  const handleUseExample = useCallback(async () => {
     setIsLoading(true);
     setProgress(0);
     setError(null);
     setOcrWords([]);
     try {
-      const file = await fetch(uploadedImage).then((res) => res.blob());
-      let extractedText;
+      const exampleImage = "/screenshot1.png";
+      setUploadedImage(exampleImage);
 
-      if (ocrMethod === "cleanTesseract") {
-        extractedText = await processImageWithCleanTesseract(
-          new File([file], "image.png", { type: "image/png" }),
-          (progress) => setProgress(progress)
-        );
-      } else if (ocrMethod === "googleVision") {
-        extractedText = await processImageWithGoogleVision(
-          new File([file], "image.png", { type: "image/png" }),
+      const response = await fetch(exampleImage);
+      const blob = await response.blob();
+      const file = new File([blob], "screenshot1.png", { type: "image/png" });
+
+      if (ocrMethod === "googleVision") {
+        if (!googleVisionApiKey) {
+          throw new Error(
+            "Google Cloud Vision API key is required. Please set your API key."
+          );
+        }
+
+        const extractedText = await processImageWithGoogleVision(
+          file,
           googleVisionApiKey,
           (progress) => setProgress(progress)
         );
-      } else {
-        extractedText = await processImageWithTesseract(
-          new File([file], "image.png", { type: "image/png" }),
-          (progress) => setProgress(progress),
-          tesseractSettings
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
+      } else if (ocrMethod === "cleanTesseract") {
+        const extractedText = await processImageWithCleanTesseract(
+          file,
+          (progress) => setProgress(progress)
         );
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
+      } else {
+        // Default Tesseract
+        const extractedText = await processImageWithTesseract(
+          file,
+          (progress) => setProgress(progress)
+        );
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
       }
-
-      console.log("OCR text extracted:", extractedText.text);
-      const items = processOcrText(extractedText.text, itemData);
-      console.log("Detected items:", items);
-      setItemList(items);
-      setOcrWords(extractedText.words);
     } catch (err) {
       console.error("Error processing image:", err);
       setError(
@@ -880,13 +876,7 @@ const AppContent: React.FC = () => {
       setIsLoading(false);
       setProgress(0);
     }
-  }, [
-    itemData,
-    uploadedImage,
-    tesseractSettings,
-    ocrMethod,
-    googleVisionApiKey,
-  ]);
+  }, [itemData, ocrMethod, googleVisionApiKey]);
 
   useEffect(() => {
     return () => {
@@ -932,6 +922,7 @@ const AppContent: React.FC = () => {
                 isDragging={isDragging}
                 setIsDragging={setIsDragging}
                 isCtrlPressed={isCtrlPressed}
+                onUseExample={handleUseExample}
               />
             ) : (
               <>
@@ -992,8 +983,6 @@ const AppContent: React.FC = () => {
               showApiKeyInput={showApiKeyInput}
               toggleApiKeyInput={toggleApiKeyInput}
               saveApiKey={saveApiKey}
-              tesseractSettings={tesseractSettings}
-              setTesseractSettings={setTesseractSettings}
             />
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
