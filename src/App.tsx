@@ -5,9 +5,25 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { ArrowUpDown, Moon, Sun } from "lucide-react";
-import { createWorker, createScheduler, Scheduler, Worker } from "tesseract.js";
+import { Database, Scan, AlertCircle } from "lucide-react";
+import {
+  createWorker,
+  createScheduler,
+  Scheduler,
+  RecognizeOptions,
+  Worker,
+} from "tesseract.js";
 import { ItemData } from "./data/items";
+import { ThemeProvider } from "./contexts/ThemeContext";
+
+// Components
+import ImageUploader from "./components/ImageUploader";
+import ImagePreview from "./components/ImagePreview";
+import SettingsPanel from "./components/SettingsPanel";
+import ResultsTable from "./components/ResultsTable";
+import ProcessingOverlay from "./components/ProcessingOverlay";
+import RawTextDisplay from "./components/RawTextDisplay";
+import ActionButtons from "./components/ActionButtons";
 
 interface Item {
   id: string;
@@ -49,7 +65,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         // Check for common OCR mistakes
         const commonOcrMistakes: [string, string[]][] = [
-          ["LEDX", ["ledx", "led", "edx"]],
+          ["LEDX", ["ledx", "led"]],
           ["GPU", ["gpu", "gpx"]],
           ["SSD", ["ssd", "sso"]],
           ["CPU", ["cpu"]],
@@ -60,6 +76,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
           ["Diary", ["diary"]],
           ["Hose", ["hose"]],
           ["Helix", ["helix"]],
+          ["H2O2", ["H202", "h202", "h2o2", "2O2"]],
         ];
 
         for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
@@ -152,18 +169,19 @@ const preprocessImage = async (imageUrl: string): Promise<string> => {
         return;
       }
 
+      // Convert to grayscale
       ctx.drawImage(img, 0, 0, width, height);
       const imageData = ctx.getImageData(0, 0, width, height);
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx) {
-        reject(new Error("Could not get temporary canvas context"));
-        return;
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const gray =
+          0.3 * imageData.data[i] +
+          0.59 * imageData.data[i + 1] +
+          0.11 * imageData.data[i + 2];
+        imageData.data[i] =
+          imageData.data[i + 1] =
+          imageData.data[i + 2] =
+            gray;
       }
-      tempCtx.putImageData(imageData, 0, 0);
-
       ctx.putImageData(imageData, 0, 0);
       const processedImageUrl = canvas.toDataURL("image/png");
       resolve(processedImageUrl);
@@ -328,6 +346,21 @@ const processImageWithCleanTesseract = async (
   }
 };
 
+interface CustomRecognizeOptions extends Partial<RecognizeOptions> {
+  tessedit_pageseg_mode?: string;
+  tessedit_ocr_engine_mode?: string;
+  tessjs_create_hocr?: boolean;
+  tessjs_create_tsv?: boolean;
+  logger?: (m: { status: string; progress?: number }) => void;
+}
+
+interface TesseractSettings {
+  tessedit_pageseg_mode: string;
+  tessedit_ocr_engine_mode: string;
+  tessjs_create_hocr: string;
+  tessjs_create_tsv: string;
+}
+
 const processImageWithTesseract = async (
   file: File,
   onProgress: (progress: number) => void,
@@ -339,49 +372,56 @@ const processImageWithTesseract = async (
     bbox: { x0: number; y0: number; x1: number; y1: number };
   }>;
 }> => {
-  console.log("Processing image with Tesseract.js...");
   try {
+    // Initialize scheduler if not already done
     if (!scheduler) {
       scheduler = await initTesseract();
     }
-    onProgress(10);
-    // Reuse fileToBase64 helper instead of duplicating FileReader logic
-    const imageUrl = await fileToBase64(file);
-    onProgress(20);
-    console.log("Preprocessing image...");
-    const processedImageUrl = await preprocessImage(imageUrl);
-    onProgress(40);
 
-    console.log("Recognizing text with Tesseract.js...");
+    // Convert file to base64
+    const base64Image = await fileToBase64(file);
+    onProgress(20);
+
+    // Preprocess the image
+    const processedImage = await preprocessImage(base64Image);
+    onProgress(30);
+
+    const jobOptions: CustomRecognizeOptions = {
+      tessedit_pageseg_mode: tesseractSettings.tessedit_pageseg_mode,
+      tessedit_ocr_engine_mode: tesseractSettings.tessedit_ocr_engine_mode,
+      tessjs_create_hocr: tesseractSettings.tessjs_create_hocr === "1",
+      tessjs_create_tsv: tesseractSettings.tessjs_create_tsv === "1",
+      logger: (m: { status: string; progress?: number }) => {
+        if (m.status === "recognizing text") {
+          onProgress(30 + (m.progress || 0) * 70);
+        }
+      },
+    };
+
+    console.log("Starting Tesseract recognition with settings:", jobOptions);
     const result = await scheduler.addJob(
       "recognize",
-      processedImageUrl,
-      {
-        tessedit_pageseg_mode: tesseractSettings.tessedit_pageseg_mode,
-        tessedit_ocr_engine_mode: tesseractSettings.tessedit_ocr_engine_mode,
-        tessjs_create_hocr: tesseractSettings.tessjs_create_hocr,
-        tessjs_create_tsv: tesseractSettings.tessjs_create_tsv,
-        tessedit_char_whitelist:
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-.,/\\()[]{}:;\"'?!@#$%^&*+=<>~` ",
-      } as TesseractJobOptions,
-      {}
+      processedImage,
+      jobOptions
     );
 
-    onProgress(95);
-    const words = result.data.words.map((word: TesseractWord) => ({
-      text: word.text,
-      bbox: {
-        x0: word.bbox.x0,
-        y0: word.bbox.y0,
-        x1: word.bbox.x1,
-        y1: word.bbox.y1,
-      },
-    }));
+    console.log("Tesseract recognition completed");
+    onProgress(100);
 
-    console.log("Tesseract.js OCR completed");
-    return { text: result.data.text, words };
+    return {
+      text: result.data.text,
+      words: result.data.words.map((word) => ({
+        text: word.text,
+        bbox: {
+          x0: word.bbox.x0,
+          y0: word.bbox.y0,
+          x1: word.bbox.x1,
+          y1: word.bbox.y1,
+        },
+      })),
+    };
   } catch (error) {
-    console.error("Tesseract.js OCR failed:", error);
+    console.error("Error in Tesseract processing:", error);
     throw error;
   }
 };
@@ -435,43 +475,12 @@ interface VisionAPIResponse {
   }>;
 }
 
-interface TesseractWord {
-  text: string;
-  bbox: {
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  };
-}
-
-interface TesseractSettings {
-  tessedit_pageseg_mode: string;
-  tessedit_ocr_engine_mode: string;
-  tessjs_create_hocr: string;
-  tessjs_create_tsv: string;
-}
-
-interface TesseractJobOptions {
-  tessedit_pageseg_mode: string;
-  tessedit_ocr_engine_mode: string;
-  tessjs_create_hocr: string;
-  tessjs_create_tsv: string;
-  tessedit_char_whitelist: string;
-}
-
-const App = () => {
+const AppContent: React.FC = () => {
   const [itemData, setItemData] = useState<ItemData[]>([]);
   const [itemList, setItemList] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(() => {
-    const savedMode = localStorage.getItem("darkMode");
-    return savedMode !== null
-      ? savedMode === "true"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
   const [ocrMethod, setOcrMethod] = useState<
     "tesseract" | "cleanTesseract" | "googleVision"
   >(() => {
@@ -549,14 +558,6 @@ const App = () => {
     loadItemData();
   }, []);
 
-  const toggleDarkMode = useCallback(() => {
-    setDarkMode((prevMode) => {
-      const newMode = !prevMode;
-      localStorage.setItem("darkMode", newMode.toString());
-      return newMode;
-    });
-  }, []);
-
   const toggleOcrMethod = useCallback(
     (method: "tesseract" | "cleanTesseract" | "googleVision") => {
       setOcrMethod(method);
@@ -578,13 +579,13 @@ const App = () => {
     setShowApiKeyInput((prev) => !prev);
   }, []);
 
-  const requestSort = (key: keyof Item) => {
+  const requestSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending";
     if (sortConfig?.key === key && sortConfig.direction === "ascending") {
       direction = "descending";
     }
     console.log(`🔄 Sorting items by ${key} in ${direction} order`);
-    setSortConfig({ key, direction });
+    setSortConfig({ key: key as keyof Item, direction });
   };
 
   const sortedItems = useMemo(() => {
@@ -797,32 +798,26 @@ const App = () => {
     };
   }, [handleClipboardPaste]);
 
-  const handleDragOver = useCallback(
-    (event: React.DragEvent<HTMLLabelElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsDragging(true);
-    },
-    []
-  );
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
 
-  const handleDragLeave = useCallback(
-    (event: React.DragEvent<HTMLLabelElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsDragging(false);
-    },
-    []
-  );
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
 
   const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLLabelElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       setIsDragging(false);
 
-      if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-        const file = event.dataTransfer.files[0];
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
         if (file.type.startsWith("image/")) {
           // Create a synthetic event object to reuse handleFileUpload
           const syntheticEvent = {
@@ -901,591 +896,154 @@ const App = () => {
 
   return (
     <div
-      className={`min-h-screen p-8 transition-colors duration-200 ${
-        darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-800"
-      }`}
+      className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
-      <div
-        className={`max-w-4xl mx-auto rounded-lg shadow-md p-6 ${
-          darkMode ? "bg-gray-800" : "bg-white"
-        }`}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Tarkov Stash Scanner</h1>
-          <button
-            onClick={toggleDarkMode}
-            className={`p-2 rounded-full ${
-              darkMode
-                ? "bg-gray-700 hover:bg-gray-600"
-                : "bg-gray-200 hover:bg-gray-300"
-            }`}
-            aria-label="Toggle dark mode"
-          >
-            {darkMode ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </button>
-        </div>
-
-        <div className="mb-6">
-          <label
-            className={`block text-sm font-medium mb-2 ${
-              darkMode ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            Upload your inventory screenshot
-          </label>
-          <div className="flex items-center justify-center w-full">
-            <label
-              className={`flex flex-col w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                isDragging
-                  ? darkMode
-                    ? "border-blue-500 bg-gray-700"
-                    : "border-blue-500 bg-blue-50"
-                  : isCtrlPressed
-                  ? darkMode
-                    ? "border-green-500 bg-gray-700"
-                    : "border-green-500 bg-green-50"
-                  : darkMode
-                  ? "border-gray-600 hover:bg-gray-700"
-                  : "border-gray-300 hover:bg-gray-50"
-              } transition-colors duration-200`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <svg
-                  className={`w-10 h-10 ${
-                    darkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  ></path>
-                </svg>
-                <p className="mb-1 text-sm">
-                  <span className="font-semibold">Click to upload</span> or drag
-                  and drop
-                </p>
-                <p className="text-xs">PNG, JPG, or JPEG</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    isCtrlPressed ? "font-bold text-green-500" : ""
-                  }`}
-                >
-                  <span className="font-semibold">Or press Ctrl+V</span> to
-                  paste from clipboard
-                </p>
-              </div>
-              <input
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={handleFileUpload}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-            <label
-              className={`block text-sm font-medium ${
-                darkMode ? "text-gray-300" : "text-gray-700"
-              }`}
-            >
-              OCR Method:
-            </label>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <input
-                  type="radio"
-                  id="tesseract"
-                  name="ocr-method"
-                  value="tesseract"
-                  checked={ocrMethod === "tesseract"}
-                  onChange={() => toggleOcrMethod("tesseract")}
-                  className="mr-2"
-                />
-                <label
-                  htmlFor="tesseract"
-                  className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                >
-                  Tesseract (Advanced)
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="radio"
-                  id="clean-tesseract"
-                  name="ocr-method"
-                  value="cleanTesseract"
-                  checked={ocrMethod === "cleanTesseract"}
-                  onChange={() => toggleOcrMethod("cleanTesseract")}
-                  className="mr-2"
-                />
-                <label
-                  htmlFor="clean-tesseract"
-                  className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                >
-                  Tesseract (Simple)
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="radio"
-                  id="google-vision"
-                  name="ocr-method"
-                  value="googleVision"
-                  checked={ocrMethod === "googleVision"}
-                  onChange={() => toggleOcrMethod("googleVision")}
-                  className="mr-2"
-                />
-                <label
-                  htmlFor="google-vision"
-                  className={`${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                >
-                  Google Cloud Vision (API)
-                </label>
-              </div>
+      <header className="bg-white dark:bg-gray-800 shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Scan className="w-8 h-8 text-blue-600 dark:text-blue-400 mr-3" />
+              <h1 className="text-xl font-bold">Tarkov Inventory Scanner</h1>
+            </div>
+            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+              <Database className="w-4 h-4 mr-1" />
+              <span>
+                {ocrMethod === "tesseract"
+                  ? "Tesseract.js"
+                  : ocrMethod === "cleanTesseract"
+                  ? "Clean Tesseract"
+                  : "Google Vision"}{" "}
+                OCR
+              </span>
             </div>
           </div>
+        </div>
+      </header>
 
-          {ocrMethod === "googleVision" && (
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-              <label
-                className={`block text-sm font-medium ${
-                  darkMode ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                API Key:
-              </label>
-              <div className="flex items-center">
-                {showApiKeyInput ? (
-                  <div className="flex">
-                    <input
-                      type="text"
-                      value={googleVisionApiKey}
-                      onChange={(e) => setGoogleVisionApiKey(e.target.value)}
-                      placeholder="Enter Google Vision API Key"
-                      className={`p-2 rounded-lg w-64 ${
-                        darkMode
-                          ? "bg-gray-700 text-white"
-                          : "bg-gray-200 text-gray-800"
-                      }`}
-                    />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {!uploadedImage ? (
+              <ImageUploader
+                onFileUpload={handleFileUpload}
+                isDragging={isDragging}
+                setIsDragging={setIsDragging}
+                isCtrlPressed={isCtrlPressed}
+              />
+            ) : (
+              <>
+                <ImagePreview
+                  uploadedImage={uploadedImage}
+                  imgRef={imgRef}
+                  ocrWords={ocrWords}
+                  showOcrHighlights={showOcrHighlights}
+                  naturalSize={naturalSize}
+                />
+                <ActionButtons
+                  setUploadedImage={setUploadedImage}
+                  setItemList={setItemList}
+                  setOcrWords={setOcrWords}
+                  showOcrHighlights={showOcrHighlights}
+                  setShowOcrHighlights={setShowOcrHighlights}
+                />
+
+                {error && (
+                  <div className="bg-red-100 dark:bg-red-900 border-l-4 border-red-500 text-red-700 dark:text-red-200 p-4 rounded">
+                    <div className="flex items-center">
+                      <AlertCircle className="w-5 h-5 mr-2" />
+                      <p>{error}</p>
+                    </div>
                     <button
-                      onClick={() => saveApiKey(googleVisionApiKey)}
-                      className="ml-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="text-sm text-red-600 dark:text-red-300 mt-2 underline"
+                      onClick={() => setError(null)}
                     >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <span
-                      className={`${
-                        darkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    >
-                      {googleVisionApiKey
-                        ? `${googleVisionApiKey.substring(
-                            0,
-                            4
-                          )}...${googleVisionApiKey.substring(
-                            googleVisionApiKey.length - 4
-                          )}`
-                        : "No API key set"}
-                    </span>
-                    <button
-                      onClick={toggleApiKeyInput}
-                      className="ml-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                    >
-                      {googleVisionApiKey ? "Change" : "Set API Key"}
+                      Dismiss
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {ocrMethod === "tesseract" && (
-          <div className="flex flex-col gap-2 p-2 border rounded-lg bg-card">
-            <h3 className="text-sm font-semibold">Tesseract Settings</h3>
-            <div className="grid grid-cols-1 gap-2">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">
-                  Page Segmentation Mode
-                </label>
-                <select
-                  className="bg-gray-700 text-gray-200 p-1"
-                  value={tesseractSettings.tessedit_pageseg_mode}
-                  onChange={(e) =>
-                    setTesseractSettings((prev) => ({
-                      ...prev,
-                      tessedit_pageseg_mode: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="6">Uniform text block</option>
-                  <option value="3">Column</option>
-                  <option value="4">Single block</option>
-                  <option value="5">Single column</option>
-                  <option value="7">Single line</option>
-                  <option value="8">Single word</option>
-                  <option value="9">Single word in circle</option>
-                  <option value="10">Single character</option>
-                  <option value="11">Sparse text</option>
-                  <option value="12">Sparse text with OSD</option>
-                  <option value="13">Raw line</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">OCR Engine Mode</label>
-                <select
-                  className="bg-gray-700 text-gray-200 p-1"
-                  value={tesseractSettings.tessedit_ocr_engine_mode}
-                  onChange={(e) =>
-                    setTesseractSettings((prev) => ({
-                      ...prev,
-                      tessedit_ocr_engine_mode: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="0">Legacy engine</option>
-                  <option value="1">Neural nets LSTM</option>
-                  <option value="2">Legacy + LSTM</option>
-                  <option value="3">Default</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Create HOCR</label>
-                <select
-                  className="bg-gray-700 text-gray-200 p-1"
-                  value={tesseractSettings.tessjs_create_hocr}
-                  onChange={(e) =>
-                    setTesseractSettings((prev) => ({
-                      ...prev,
-                      tessjs_create_hocr: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="0">Disabled</option>
-                  <option value="1">Enabled</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Create TSV</label>
-                <select
-                  className="bg-gray-700 text-gray-200 p-1"
-                  value={tesseractSettings.tessjs_create_tsv}
-                  onChange={(e) =>
-                    setTesseractSettings((prev) => ({
-                      ...prev,
-                      tessjs_create_tsv: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="0">Disabled</option>
-                  <option value="1">Enabled</option>
-                </select>
-              </div>
+                {itemList.length > 0 && (
+                  <>
+                    <RawTextDisplay ocrWords={ocrWords} />
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        Detected Items
+                      </h3>
+                      <ResultsTable
+                        items={sortedItems}
+                        sortConfig={sortConfig}
+                        requestSort={requestSort}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <SettingsPanel
+              ocrMethod={ocrMethod}
+              toggleOcrMethod={toggleOcrMethod}
+              googleVisionApiKey={googleVisionApiKey}
+              showApiKeyInput={showApiKeyInput}
+              toggleApiKeyInput={toggleApiKeyInput}
+              saveApiKey={saveApiKey}
+              tesseractSettings={tesseractSettings}
+              setTesseractSettings={setTesseractSettings}
+            />
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                How It Works
+              </h3>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <li>Upload a screenshot of your Tarkov inventory</li>
+                <li>Select your preferred OCR method</li>
+                <li>Process the image to detect items</li>
+                <li>View detected items and their estimated value</li>
+                <li>Sort results by name, price, or quantity</li>
+                <li>Export results for later reference</li>
+              </ol>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Tips
+              </h3>
+              <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <li>Use high-resolution screenshots for better results</li>
+                <li>Ensure item names are clearly visible</li>
+                <li>Adjust confidence threshold for more/fewer matches</li>
+                <li>Google Vision typically provides better accuracy</li>
+                <li>Use dark mode for night-time raiding sessions</li>
+              </ul>
             </div>
           </div>
-        )}
+        </div>
+      </main>
 
-        <div
-          className={`mb-4 p-3 rounded-lg ${
-            darkMode ? "bg-gray-800" : "bg-gray-100"
-          }`}
-        >
-          <p
-            className={`text-sm ${
-              darkMode ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
-            <strong>Note:</strong> Google Cloud Vision API requires an API key
-            and may incur charges. You need to{" "}
-            <a
-              href="https://cloud.google.com/vision/docs/setup"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              set up a Google Cloud account
-            </a>{" "}
-            and enable the Vision API to get your key.
+      <footer className="bg-white dark:bg-gray-800 fixed bottom-0 left-0 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            Tarkov Inventory Scanner - Not affiliated with Battlestate Games
           </p>
         </div>
+      </footer>
 
-        {error && (
-          <div
-            className={[
-              `bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4`,
-              darkMode ? "dark:bg-red-900" : "",
-            ].join(" ")}
-            role="alert"
-          >
-            <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{error}</span>
-          </div>
-        )}
-
-        {uploadedImage && (
-          <div className="mb-6 overflow-auto">
-            <h2
-              className={`text-xl font-semibold mb-2 ${
-                darkMode ? "text-white" : "text-gray-800"
-              }`}
-            >
-              Uploaded Image with OCR Results
-            </h2>
-            <div className="flex items-center mb-2">
-              <label
-                className={`inline-flex items-center cursor-pointer ${
-                  darkMode ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={showOcrHighlights}
-                  onChange={() => setShowOcrHighlights(!showOcrHighlights)}
-                  className="sr-only peer"
-                />
-                <div
-                  className={`relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600`}
-                ></div>
-                <span className="ml-3 text-sm font-medium">
-                  Show OCR Highlights
-                </span>
-              </label>
-            </div>
-            <div className="relative inline-block">
-              {/* The ref so we can read naturalWidth/naturalHeight */}
-              <img
-                ref={imgRef}
-                src={uploadedImage}
-                alt="Uploaded screenshot"
-                className="max-w-full h-auto border border-gray-300 rounded-lg"
-                style={{ maxHeight: "600px" }}
-              />
-              {showOcrHighlights &&
-                ocrWords.map((word, index) => {
-                  // If we don't yet know the natural size, skip drawing
-                  if (!naturalSize.width || !naturalSize.height) {
-                    return null;
-                  }
-                  // The actual displayed size
-                  const displayedWidth = imgRef.current?.clientWidth || 1;
-                  const displayedHeight = imgRef.current?.clientHeight || 1;
-
-                  // Scale factors for bounding boxes
-                  const scaleX = displayedWidth / naturalSize.width;
-                  const scaleY = displayedHeight / naturalSize.height;
-
-                  const x0 = word.bbox.x0 * scaleX;
-                  const y0 = word.bbox.y0 * scaleY;
-                  const w = (word.bbox.x1 - word.bbox.x0) * scaleX;
-                  const h = (word.bbox.y1 - word.bbox.y0) * scaleY;
-
-                  return (
-                    <div
-                      key={index}
-                      className="absolute border-2 border-green-500 bg-green-500 bg-opacity-20"
-                      style={{
-                        left: `${x0}px`,
-                        top: `${y0}px`,
-                        width: `${w}px`,
-                        height: `${h}px`,
-                        zIndex: 10,
-                      }}
-                      title={word.text}
-                    />
-                  );
-                })}
-            </div>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex flex-col justify-center items-center py-10">
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4 dark:bg-gray-700">
-              <div
-                className="bg-blue-600 h-2.5 rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <div
-              className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${
-                darkMode ? "border-blue-400" : "border-blue-500"
-              }`}
-            ></div>
-            <span
-              className={`ml-3 mt-2 ${
-                darkMode ? "text-gray-300" : "text-gray-700"
-              }`}
-            >
-              {progress < 100
-                ? `Processing image... ${Math.round(progress)}%`
-                : "Finalizing results..."}
-            </span>
-          </div>
-        ) : (
-          <>
-            {itemList.length > 0 ? (
-              <div className="overflow-y-auto max-h-[60vh]">
-                <table className="w-full border-collapse">
-                  <thead
-                    className={`sticky top-0 ${
-                      darkMode
-                        ? "divide-gray-700 text-gray-300"
-                        : "divide-gray-200 text-gray-700"
-                    }`}
-                  >
-                    <tr>
-                      <th
-                        className={`px-4 py-2 text-left cursor-pointer ${
-                          darkMode ? "hover:bg-gray-600" : "hover:bg-gray-300"
-                        }`}
-                        onClick={() => requestSort("name")}
-                      >
-                        <div className="flex items-center">
-                          Item Name
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </th>
-                      <th
-                        className={`px-4 py-2 text-center cursor-pointer ${
-                          darkMode ? "hover:bg-gray-600" : "hover:bg-gray-300"
-                        }`}
-                        onClick={() => requestSort("quantity")}
-                      >
-                        <div className="flex items-center justify-center">
-                          Quantity
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </th>
-                      <th
-                        className={`px-4 py-2 text-right cursor-pointer ${
-                          darkMode ? "hover:bg-gray-600" : "hover:bg-gray-300"
-                        }`}
-                        onClick={() => requestSort("basePrice")}
-                      >
-                        <div className="flex items-center justify-end">
-                          Base Price (₽)
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedItems.map((item, index) => (
-                      <tr
-                        key={index}
-                        className={
-                          index % 2 === 0
-                            ? darkMode
-                              ? "bg-gray-700"
-                              : "bg-gray-50"
-                            : darkMode
-                            ? "bg-gray-800"
-                            : "bg-white"
-                        }
-                      >
-                        <td
-                          className={`border px-4 py-2 ${
-                            darkMode ? "border-gray-700" : "border-gray-200"
-                          }`}
-                        >
-                          {item.name}
-                        </td>
-                        <td
-                          className={`border px-4 py-2 text-center ${
-                            darkMode ? "border-gray-700" : "border-gray-200"
-                          }`}
-                        >
-                          x{item.quantity}
-                        </td>
-                        <td
-                          className={`border px-4 py-2 text-right ${
-                            darkMode ? "border-gray-700" : "border-gray-200"
-                          }`}
-                        >
-                          {item.basePrice.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div
-                className={`text-center py-10 ${
-                  darkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                <p>
-                  No items detected. Upload an inventory screenshot to scan for
-                  items.
-                </p>
-              </div>
-            )}
-
-            {itemList.length > 0 && (
-              <div
-                className={`mt-6 p-4 rounded-lg ${
-                  darkMode ? "bg-gray-700" : "bg-gray-100"
-                }`}
-              >
-                <h2 className="text-xl font-semibold">Summary</h2>
-                <p className="font-medium">
-                  Total Items:{" "}
-                  {itemList.reduce((sum, item) => sum + item.quantity, 0)}
-                </p>
-                <p className="font-medium">
-                  Total Value:{" "}
-                  {itemList
-                    .reduce(
-                      (sum, item) => sum + item.basePrice * item.quantity,
-                      0
-                    )
-                    .toLocaleString()}{" "}
-                  ₽
-                </p>
-                <p
-                  className={`text-sm mt-2 ${
-                    darkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Note: Some items may have a base price of 0 as they were not
-                  found in the database or have special values.
-                </p>
-              </div>
-            )}
-          </>
-        )}
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={handleRescan}
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-            disabled={isLoading || !uploadedImage}
-          >
-            Rescan
-          </button>
-        </div>
-      </div>
+      <ProcessingOverlay isLoading={isLoading} progress={progress} />
     </div>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 };
 
