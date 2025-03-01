@@ -10,7 +10,6 @@ import {
   createWorker,
   createScheduler,
   Scheduler,
-  RecognizeOptions,
 } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -294,64 +293,33 @@ const processImageWithCleanTesseract = async (
     bbox: { x0: number; y0: number; x1: number; y1: number };
   }>;
 }> => {
-  console.log("Processing image with Clean Tesseract.js...");
-  try {
-    onProgress(10);
-    // Convert file to data URL
-    const reader = new FileReader();
-    const imageData = await new Promise<string>((resolve) => {
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    });
-    onProgress(20);
-
-    // Create a worker - in newer versions, workers come pre-loaded with language data
-    const worker = await createWorker("eng");
-
-    // Log progress manually at key points
-    onProgress(50);
-
-    // Recognize text directly (no need for load, loadLanguage, or initialize)
-    const response = await worker.recognize(imageData);
-    onProgress(90);
-
-    // Format words to match the expected output format
-    const words = response.data.words.map(
-      (word: {
-        text: string;
-        bbox: { x0: number; y0: number; x1: number; y1: number };
-      }) => ({
-        text: word.text,
-        bbox: {
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-        },
-      })
-    );
-
-    // Terminate worker
-    await worker.terminate();
-
-    onProgress(95);
-    console.log("Clean Tesseract.js OCR completed");
-    return { text: response.data.text, words };
-  } catch (error) {
-    console.error("Clean Tesseract.js OCR failed:", error);
-    throw error;
+  if (!scheduler) {
+    console.log("Initializing Tesseract.js scheduler...");
+    scheduler = await initTesseract();
   }
-};
 
-interface CustomRecognizeOptions extends Partial<RecognizeOptions> {
-  tessedit_pageseg_mode?: string;
-  tessedit_ocr_engine_mode?: string;
-  tessjs_create_hocr?: boolean;
-  tessjs_create_tsv?: boolean;
-  logger?: (m: { status: string; progress?: number }) => void;
-}
+  console.log("Starting Clean Tesseract recognition");
+  onProgress(10);
+
+  const preprocessedImage = await preprocessImage(URL.createObjectURL(file));
+  onProgress(30);
+
+  const result = await scheduler.addJob("recognize", preprocessedImage);
+  onProgress(90);
+
+  return {
+    text: result.data.text,
+    words: result.data.words.map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
+      text: word.text,
+      bbox: {
+        x0: word.bbox.x0,
+        y0: word.bbox.y0,
+        x1: word.bbox.x1,
+        y1: word.bbox.y1,
+      },
+    })),
+  };
+};
 
 const processImageWithTesseract = async (
   file: File,
@@ -363,58 +331,32 @@ const processImageWithTesseract = async (
     bbox: { x0: number; y0: number; x1: number; y1: number };
   }>;
 }> => {
-  try {
-    // Initialize scheduler if not already done
-    if (!scheduler) {
-      scheduler = await initTesseract();
-    }
-
-    // Convert file to base64
-    const base64Image = await fileToBase64(file);
-    onProgress(20);
-
-    // Preprocess the image
-    const processedImage = await preprocessImage(base64Image);
-    onProgress(30);
-
-    const jobOptions: CustomRecognizeOptions = {
-      tessedit_pageseg_mode: "6",
-      tessedit_ocr_engine_mode: "1",
-      tessjs_create_hocr: true,
-      tessjs_create_tsv: true,
-      logger: (m: { status: string; progress?: number }) => {
-        if (m.status === "recognizing text") {
-          onProgress(30 + (m.progress || 0) * 70);
-        }
-      },
-    };
-
-    console.log("Starting Tesseract recognition with settings:", jobOptions);
-    const result = await scheduler.addJob(
-      "recognize",
-      processedImage,
-      jobOptions
-    );
-
-    console.log("Tesseract recognition completed");
-    onProgress(100);
-
-    return {
-      text: result.data.text,
-      words: result.data.words.map((word) => ({
-        text: word.text,
-        bbox: {
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-        },
-      })),
-    };
-  } catch (error) {
-    console.error("Error in Tesseract processing:", error);
-    throw error;
+  if (!scheduler) {
+    console.log("Initializing Tesseract.js scheduler...");
+    scheduler = await initTesseract();
   }
+
+  console.log("Starting Tesseract recognition");
+  onProgress(10);
+
+  const preprocessedImage = await preprocessImage(URL.createObjectURL(file));
+  onProgress(30);
+
+  const result = await scheduler.addJob("recognize", preprocessedImage);
+  onProgress(90);
+
+  return {
+    text: result.data.text,
+    words: result.data.words.map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
+      text: word.text,
+      bbox: {
+        x0: word.bbox.x0,
+        y0: word.bbox.y0,
+        x1: word.bbox.x1,
+        y1: word.bbox.y1,
+      },
+    })),
+  };
 };
 
 let scheduler: Scheduler | null = null;
