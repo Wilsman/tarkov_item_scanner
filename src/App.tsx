@@ -6,13 +6,10 @@ import React, {
   useRef,
 } from "react";
 import { Database, Scan, AlertCircle } from "lucide-react";
-import {
-  createWorker,
-  createScheduler,
-  Scheduler,
-} from "tesseract.js";
+import { createWorker, createScheduler, Scheduler } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { getEasyOCREndpoint } from './config';
 
 // Components
 import ImageUploader from "./components/ImageUploader";
@@ -75,6 +72,8 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
           // ["Hose", ["hose"]],
           // ["Helix", ["helix"]],
           ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
+          ["MTube", ["MTube", "mtube"]],
+          ["RBattery", ["RBattery", "Rattery", "RBattery"]],
         ];
 
         for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
@@ -274,13 +273,51 @@ const processImageWithGoogleVision = async (
   }
 };
 
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
+const processImageWithEasyOCR = async (
+  file: File,
+  onProgress: (progress: number) => void
+): Promise<{
+  text: string;
+  words: Array<{
+    text: string;
+    bbox: { x0: number; y0: number; x1: number; y1: number };
+  }>;
+}> => {
+  onProgress(10);
+  
+  try {
+    // Create a FormData object to send the file
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    onProgress(30);
+    
+    // Get the appropriate endpoint from config
+    const endpoint = getEasyOCREndpoint();
+    
+    // Send the image to the EasyOCR server (local or cloud function)
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    onProgress(70);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`EasyOCR server error: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    onProgress(90);
+    
+    // The server already returns data in the expected format
+    onProgress(100);
+    return data;
+  } catch (error) {
+    console.error("Error with EasyOCR:", error);
+    throw error;
+  }
 };
 
 const processImageWithCleanTesseract = async (
@@ -309,15 +346,20 @@ const processImageWithCleanTesseract = async (
 
   return {
     text: result.data.text,
-    words: result.data.words.map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
-      text: word.text,
-      bbox: {
-        x0: word.bbox.x0,
-        y0: word.bbox.y0,
-        x1: word.bbox.x1,
-        y1: word.bbox.y1,
-      },
-    })),
+    words: result.data.words.map(
+      (word: {
+        text: string;
+        bbox: { x0: number; y0: number; x1: number; y1: number };
+      }) => ({
+        text: word.text,
+        bbox: {
+          x0: word.bbox.x0,
+          y0: word.bbox.y0,
+          x1: word.bbox.x1,
+          y1: word.bbox.y1,
+        },
+      })
+    ),
   };
 };
 
@@ -347,15 +389,20 @@ const processImageWithTesseract = async (
 
   return {
     text: result.data.text,
-    words: result.data.words.map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
-      text: word.text,
-      bbox: {
-        x0: word.bbox.x0,
-        y0: word.bbox.y0,
-        x1: word.bbox.x1,
-        y1: word.bbox.y1,
-      },
-    })),
+    words: result.data.words.map(
+      (word: {
+        text: string;
+        bbox: { x0: number; y0: number; x1: number; y1: number };
+      }) => ({
+        text: word.text,
+        bbox: {
+          x0: word.bbox.x0,
+          y0: word.bbox.y0,
+          x1: word.bbox.x1,
+          y1: word.bbox.y1,
+        },
+      })
+    ),
   };
 };
 
@@ -408,6 +455,15 @@ interface VisionAPIResponse {
   }>;
 }
 
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 const AppContent: React.FC = () => {
   const [itemData, setItemData] = useState<ItemData[]>([]);
   const [itemList, setItemList] = useState<Item[]>([]);
@@ -415,11 +471,11 @@ const AppContent: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [ocrMethod, setOcrMethod] = useState<
-    "tesseract" | "cleanTesseract" | "googleVision"
+    "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR"
   >(() => {
     const savedMethod = localStorage.getItem("ocrMethod");
     return (
-      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision") ||
+      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") ||
       "tesseract"
     );
   });
@@ -484,21 +540,27 @@ const AppContent: React.FC = () => {
   }, []);
 
   const toggleOcrMethod = useCallback(
-    (method: "tesseract" | "cleanTesseract" | "googleVision") => {
+    (method: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") => {
       setOcrMethod(method);
       localStorage.setItem("ocrMethod", method);
       if (method === "googleVision" && !googleVisionApiKey) {
         setShowApiKeyInput(true);
       }
+      // We don't need an API key for the local EasyOCR server
+      // if (method === "easyOCR" && !easyOCRApiKey) {
+      //   setShowApiKeyInput(true);
+      // }
     },
     [googleVisionApiKey]
   );
 
   const saveApiKey = useCallback((key: string) => {
-    setGoogleVisionApiKey(key);
-    localStorage.setItem("googleVisionApiKey", key);
+    if (ocrMethod === "googleVision") {
+      setGoogleVisionApiKey(key);
+      localStorage.setItem("googleVisionApiKey", key);
+    }
     setShowApiKeyInput(false);
-  }, []);
+  }, [ocrMethod]);
 
   const toggleApiKeyInput = useCallback(() => {
     setShowApiKeyInput((prev) => !prev);
@@ -555,6 +617,23 @@ const AppContent: React.FC = () => {
           const extractedText = await processImageWithGoogleVision(
             file,
             googleVisionApiKey,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else if (ocrMethod === "easyOCR") {
+          // No API key required for local server
+          // if (!easyOCRApiKey) {
+          //   throw new Error(
+          //     "EasyOCR API key is required. Please set your API key."
+          //   );
+          // }
+
+          const extractedText = await processImageWithEasyOCR(
+            file,
             (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
@@ -642,6 +721,23 @@ const AppContent: React.FC = () => {
           const extractedText = await processImageWithGoogleVision(
             file,
             googleVisionApiKey,
+            (progress) => setProgress(progress)
+          );
+          console.log("OCR text extracted:", extractedText.text);
+          const items = processOcrText(extractedText.text, itemData);
+          console.log("Detected items:", items);
+          setItemList(items);
+          setOcrWords(extractedText.words);
+        } else if (ocrMethod === "easyOCR") {
+          // No API key required for local server
+          // if (!easyOCRApiKey) {
+          //   throw new Error(
+          //     "EasyOCR API key is required. Please set your API key."
+          //   );
+          // }
+
+          const extractedText = await processImageWithEasyOCR(
+            file,
             (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
@@ -784,6 +880,23 @@ const AppContent: React.FC = () => {
         console.log("Detected items:", items);
         setItemList(items);
         setOcrWords(extractedText.words);
+      } else if (ocrMethod === "easyOCR") {
+        // No API key required for local server
+        // if (!easyOCRApiKey) {
+        //   throw new Error(
+        //     "EasyOCR API key is required. Please set your API key."
+        //   );
+        // }
+
+        const extractedText = await processImageWithEasyOCR(
+          file,
+          (progress) => setProgress(progress)
+        );
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
       } else if (ocrMethod === "cleanTesseract") {
         const extractedText = await processImageWithCleanTesseract(
           file,
@@ -847,6 +960,8 @@ const AppContent: React.FC = () => {
                   ? "Tesseract.js"
                   : ocrMethod === "cleanTesseract"
                   ? "Clean Tesseract"
+                  : ocrMethod === "easyOCR"
+                  ? "EasyOCR"
                   : "Google Vision"}{" "}
                 OCR
               </span>
@@ -949,7 +1064,8 @@ const AppContent: React.FC = () => {
                 <li>Use high-resolution screenshots for better results</li>
                 <li>Ensure item names are clearly visible</li>
                 <li>Adjust confidence threshold for more/fewer matches</li>
-                <li>Google Vision typically provides better accuracy</li>
+                <li>Google Vision and EasyOCR typically provide better accuracy</li>
+                <li>EasyOCR is a good balance between speed and accuracy</li>
                 <li>Use dark mode for night-time raiding sessions</li>
               </ul>
             </div>

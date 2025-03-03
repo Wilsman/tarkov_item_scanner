@@ -17,6 +17,8 @@ old
 
 # Editor directories and files
 .vscode/*
+.venv
+fly.toml
 !.vscode/extensions.json
 .idea
 .DS_Store

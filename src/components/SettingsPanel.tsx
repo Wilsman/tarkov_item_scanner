@@ -4,8 +4,8 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsPanelProps {
-  ocrMethod: "tesseract" | "cleanTesseract" | "googleVision";
-  toggleOcrMethod: (method: "tesseract" | "cleanTesseract" | "googleVision") => void;
+  ocrMethod: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR";
+  toggleOcrMethod: (method: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") => void;
   googleVisionApiKey: string;
   showApiKeyInput: boolean;
   toggleApiKeyInput: () => void;
@@ -62,6 +62,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="flex items-center">
               <input
                 type="radio"
+                id="easy-ocr"
+                name="ocr-method"
+                value="easyOCR"
+                checked={ocrMethod === "easyOCR"}
+                onChange={() => toggleOcrMethod("easyOCR")}
+                className="form-radio text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
+              />
+              <label htmlFor="easy-ocr" className="ml-2 text-gray-700 dark:text-gray-300">
+                EasyOCR (local server)
+              </label>
+              {ocrMethod === "easyOCR" && (
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  Requires server to be running
+                </span>
+              )}
+            </div>
+            <div className="flex items-center">
+              <input
+                type="radio"
                 id="google-vision"
                 name="ocr-method"
                 value="googleVision"
@@ -79,7 +98,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {ocrMethod === "googleVision" && (
           <div>
             <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-              API Key
+              Google Vision API Key
             </label>
             {showApiKeyInput ? (
               <div className="flex space-x-2">
@@ -115,7 +134,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
             )}
           </div>
-        )}        
+        )}
+
+        {ocrMethod === "easyOCR" && (
+          <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> EasyOCR requires the Flask server to be running at http://127.0.0.1:5000. Make sure you've started the server with:
+            </p>
+            <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
+              cd cloud-run<br />
+              python main.py
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
