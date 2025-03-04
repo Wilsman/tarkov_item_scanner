@@ -4,21 +4,21 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsPanelProps {
-  ocrMethod: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR";
-  toggleOcrMethod: (method: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") => void;
+  ocrMethod: "tesseract" | "cleanTesseract" | "googleVision" | "gemini";
+  toggleOcrMethod: (method: "tesseract" | "cleanTesseract" | "googleVision" | "gemini") => void;
   googleVisionApiKey: string;
-  showApiKeyInput: boolean;
-  toggleApiKeyInput: () => void;
-  saveApiKey: (key: string) => void;
+  setGoogleVisionApiKey: (key: string) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   ocrMethod,
   toggleOcrMethod,
   googleVisionApiKey,
-  showApiKeyInput,
-  toggleApiKeyInput,
-  saveApiKey,
+  setGoogleVisionApiKey,
+  geminiApiKey,
+  setGeminiApiKey,
 }) => {
   const { theme, toggleTheme } = useTheme();
 
@@ -48,6 +48,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="flex items-center">
               <input
                 type="radio"
+                id="gemini"
+                name="ocr-method"
+                value="gemini"
+                checked={ocrMethod === "gemini"}
+                onChange={() => toggleOcrMethod("gemini")}
+                className="form-radio text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
+              />
+              <label htmlFor="gemini" className="ml-2 text-gray-700 dark:text-gray-300">
+                Gemini 2.0 (API)
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="radio"
                 id="clean-tesseract"
                 name="ocr-method"
                 value="cleanTesseract"
@@ -58,25 +72,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <label htmlFor="clean-tesseract" className="ml-2 text-gray-700 dark:text-gray-300">
                 Tesseract (local)
               </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="easy-ocr"
-                name="ocr-method"
-                value="easyOCR"
-                checked={ocrMethod === "easyOCR"}
-                onChange={() => toggleOcrMethod("easyOCR")}
-                className="form-radio text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
-              />
-              <label htmlFor="easy-ocr" className="ml-2 text-gray-700 dark:text-gray-300">
-                EasyOCR (local server)
-              </label>
-              {ocrMethod === "easyOCR" && (
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  Requires server to be running
-                </span>
-              )}
             </div>
             <div className="flex items-center">
               <input
@@ -100,51 +95,57 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
               Google Vision API Key
             </label>
-            {showApiKeyInput ? (
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={googleVisionApiKey}
-                  onChange={(e) => saveApiKey(e.target.value)}
-                  placeholder="Enter Google Vision API Key"
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
-                />
-                <button
-                  onClick={() => saveApiKey(googleVisionApiKey)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-                >
-                  Save
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-500 dark:text-gray-400">
-                  {googleVisionApiKey
-                    ? `${googleVisionApiKey.substring(0, 4)}...${googleVisionApiKey.substring(
-                        googleVisionApiKey.length - 4
-                      )}`
-                    : "No API key set"}
-                </span>
-                <button
-                  onClick={toggleApiKeyInput}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
-                >
-                  {googleVisionApiKey ? "Change" : "Set API Key"}
-                </button>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-500 dark:text-gray-400">
+                {googleVisionApiKey
+                  ? `${googleVisionApiKey.substring(0, 4)}...${googleVisionApiKey.substring(
+                      googleVisionApiKey.length - 4
+                    )}`
+                  : "No API key set"}
+              </span>
+              <button
+                onClick={() => {
+                  const key = prompt("Enter Google Vision API Key");
+                  if (key !== null) {
+                    setGoogleVisionApiKey(key);
+                  }
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+              >
+                {googleVisionApiKey ? "Change" : "Set API Key"}
+              </button>
+            </div>
           </div>
         )}
 
-        {ocrMethod === "easyOCR" && (
-          <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Note:</strong> EasyOCR requires the Flask server to be running at http://127.0.0.1:5000. Make sure you've started the server with:
-            </p>
-            <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
-              cd cloud-run<br />
-              python main.py
-            </pre>
+        {ocrMethod === "gemini" && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+              Gemini API Key
+            </label>
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-500 dark:text-gray-400">
+                {geminiApiKey
+                  ? `${geminiApiKey.substring(0, 4)}...${geminiApiKey.substring(
+                      geminiApiKey.length - 4
+                    )}`
+                  : "Using default API key"}
+              </span>
+              <button
+                onClick={() => {
+                  const key = prompt("Enter your Gemini API Key (leave empty to use default)", geminiApiKey);
+                  setGeminiApiKey(key || "");
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+              >
+                {geminiApiKey ? "Change" : "Override"}
+              </button>
+            </div>
+            <div className="mt-2 bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <strong>Note:</strong> The app uses a default Gemini API key, but you can override it with your own key if you prefer.
+              </p>
+            </div>
           </div>
         )}
       </div>

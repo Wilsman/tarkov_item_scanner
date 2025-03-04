@@ -9,7 +9,6 @@ import { Database, Scan, AlertCircle } from "lucide-react";
 import { createWorker, createScheduler, Scheduler } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { getEasyOCREndpoint } from './config';
 
 // Components
 import ImageUploader from "./components/ImageUploader";
@@ -273,8 +272,9 @@ const processImageWithGoogleVision = async (
   }
 };
 
-const processImageWithEasyOCR = async (
-  file: File,
+const processImageWithGemini = async (
+  imageData: string,
+  apiKey: string,
   onProgress: (progress: number) => void
 ): Promise<{
   text: string;
@@ -283,39 +283,179 @@ const processImageWithEasyOCR = async (
     bbox: { x0: number; y0: number; x1: number; y1: number };
   }>;
 }> => {
-  onProgress(10);
-  
   try {
-    // Create a FormData object to send the file
-    const formData = new FormData();
-    formData.append('image', file);
+    // Get the Gemini API key from environment variables
+    const defaultGeminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    // Use the user-provided API key if available, otherwise use the default key
+    const effectiveApiKey = (apiKey && apiKey.trim() !== "") ? apiKey : defaultGeminiApiKey;
+    
+    if (!effectiveApiKey) {
+      throw new Error("Gemini API key is required. Please set it in the settings or provide it as an environment variable.");
+    }
+    
+    onProgress(10);
+    
+    // Convert image to base64 if it's not already
+    let base64Image = imageData;
+    if (!imageData.startsWith("data:")) {
+      base64Image = await toBase64(imageData);
+    }
     
     onProgress(30);
     
-    // Get the appropriate endpoint from config
-    const endpoint = getEasyOCREndpoint();
+    // Extract the base64 data part
+    const base64Data = base64Image.split(",")[1];
     
-    // Send the image to the EasyOCR server (local or cloud function)
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      body: formData,
-    });
+    // Prepare the request payload for Gemini
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: "Identify all Escape from Tarkov items in this image with their quantities. Return only the items you can identify with high confidence."
+            },
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: base64Data
+              }
+            }
+          ]
+        }
+      ],
+      system_instruction: {
+        parts: [
+          {
+            text: "You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {\"RBattery\": 3, \"Powerbank\": 1}. Do not include any other text or explanations."
+          }
+        ]
+      }
+    };
+    
+    onProgress(50);
+    
+    // Make the API request to Gemini
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${effectiveApiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
     
     onProgress(70);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`EasyOCR server error: ${response.status} ${errorText}`);
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
     }
     
-    const data = await response.json();
+    const result = await response.json();
+    
     onProgress(90);
     
-    // The server already returns data in the expected format
+    // Extract the text from the Gemini response
+    let responseText = "";
+    if (
+      result.candidates &&
+      result.candidates[0] &&
+      result.candidates[0].content &&
+      result.candidates[0].content.parts &&
+      result.candidates[0].content.parts[0] &&
+      result.candidates[0].content.parts[0].text
+    ) {
+      responseText = result.candidates[0].content.parts[0].text;
+    } else {
+      throw new Error("Unexpected response format from Gemini API");
+    }
+    
+    console.log("Gemini raw response:", responseText);
+    
+    // Try to extract JSON from markdown code block if present
+    let jsonData: Record<string, number> = {};
+    const jsonMatch = responseText.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+    if (jsonMatch) {
+      try {
+        jsonData = JSON.parse(jsonMatch[1]);
+      } catch (e) {
+        console.error("Failed to parse JSON from code block:", e);
+      }
+    } else {
+      // If not in code block, try to find JSON directly
+      const directJsonMatch = responseText.match(/{[\s\S]*?}/);
+      if (directJsonMatch) {
+        try {
+          jsonData = JSON.parse(directJsonMatch[0]);
+        } catch (e) {
+          console.error("Failed to parse direct JSON:", e);
+        }
+      }
+    }
+    
+    // If JSON parsing failed, try to extract key-value pairs
+    if (Object.keys(jsonData).length === 0) {
+      // Try to parse space-separated key-value pairs (e.g., "RBattery: 3 Powerbank: 1")
+      const itemRegex = /"?([^":]*)"\s*:\s*(\d+)/g;
+      let match;
+      while ((match = itemRegex.exec(responseText)) !== null) {
+        const [, key, value] = match; 
+        jsonData[key.trim()] = parseInt(value.trim(), 10);
+      }
+      
+      // If still no data, try line by line
+      if (Object.keys(jsonData).length === 0) {
+        const lines = responseText.split('\n');
+        lines.forEach(line => {
+          const match = line.match(/"?([^":]*)"\s*:\s*(\d+)/);
+          if (match) {
+            const [, key, value] = match;
+            jsonData[key.trim()] = parseInt(value.trim(), 10);
+          }
+        });
+      }
+    }
+    
+    console.log("Parsed JSON data:", jsonData);
+    
+    // Convert the JSON to the format expected by processOcrText
+    let textOutput = "";
+    const words: Array<{
+      text: string;
+      bbox: { x0: number; y0: number; x1: number; y1: number };
+    }> = [];
+    
+    Object.entries(jsonData).forEach(([key, value], index) => {
+      // Map common abbreviations to full item names for better matching
+      const itemName = key;
+      
+      // Don't modify the text output - keep it as is for debugging
+      const text = `${itemName}: ${value}`;
+      textOutput += text + "\n";
+      
+      // Create a dummy bounding box since we don't have actual coordinates
+      words.push({
+        text,
+        bbox: {
+          x0: 10,
+          y0: 10 + (index * 20),
+          x1: 200,
+          y1: 30 + (index * 20)
+        }
+      });
+    });
+    
     onProgress(100);
-    return data;
+    
+    return {
+      text: textOutput,
+      words
+    };
   } catch (error) {
-    console.error("Error with EasyOCR:", error);
+    console.error("Error processing image with Gemini:", error);
     throw error;
   }
 };
@@ -464,6 +604,17 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const toBase64 = async (input: string | File): Promise<string> => {
+  if (input instanceof File) {
+    return fileToBase64(input);
+  }
+  // If it's already a base64 string or data URL, return as is
+  if (typeof input === 'string') {
+    return input;
+  }
+  throw new Error('Invalid input type for base64 conversion');
+};
+
 const AppContent: React.FC = () => {
   const [itemData, setItemData] = useState<ItemData[]>([]);
   const [itemList, setItemList] = useState<Item[]>([]);
@@ -471,18 +622,23 @@ const AppContent: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [ocrMethod, setOcrMethod] = useState<
-    "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR"
+    "tesseract" | "cleanTesseract" | "googleVision" | "gemini"
   >(() => {
     const savedMethod = localStorage.getItem("ocrMethod");
     return (
-      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") ||
-      "tesseract"
+      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision" | "gemini") ||
+      "gemini"
     );
   });
   const [googleVisionApiKey, setGoogleVisionApiKey] = useState(
-    () => localStorage.getItem("googleVisionApiKey") || ""
+    () => import.meta.env.VITE_GOOGLE_VISION_API_KEY || localStorage.getItem("googleVisionApiKey") || ""
   );
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    // If user has explicitly set a key in localStorage, use that
+    const savedKey = localStorage.getItem("geminiApiKey");
+    // Only use the saved key if it exists and is not empty
+    return (savedKey && savedKey.trim() !== "") ? savedKey : "";
+  });
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [ocrWords, setOcrWords] = useState<
     Array<{
@@ -540,31 +696,12 @@ const AppContent: React.FC = () => {
   }, []);
 
   const toggleOcrMethod = useCallback(
-    (method: "tesseract" | "cleanTesseract" | "googleVision" | "easyOCR") => {
+    (method: "tesseract" | "cleanTesseract" | "googleVision" | "gemini") => {
       setOcrMethod(method);
       localStorage.setItem("ocrMethod", method);
-      if (method === "googleVision" && !googleVisionApiKey) {
-        setShowApiKeyInput(true);
-      }
-      // We don't need an API key for the local EasyOCR server
-      // if (method === "easyOCR" && !easyOCRApiKey) {
-      //   setShowApiKeyInput(true);
-      // }
     },
-    [googleVisionApiKey]
+    []
   );
-
-  const saveApiKey = useCallback((key: string) => {
-    if (ocrMethod === "googleVision") {
-      setGoogleVisionApiKey(key);
-      localStorage.setItem("googleVisionApiKey", key);
-    }
-    setShowApiKeyInput(false);
-  }, [ocrMethod]);
-
-  const toggleApiKeyInput = useCallback(() => {
-    setShowApiKeyInput((prev) => !prev);
-  }, []);
 
   const requestSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending";
@@ -624,15 +761,8 @@ const AppContent: React.FC = () => {
           console.log("Detected items:", items);
           setItemList(items);
           setOcrWords(extractedText.words);
-        } else if (ocrMethod === "easyOCR") {
-          // No API key required for local server
-          // if (!easyOCRApiKey) {
-          //   throw new Error(
-          //     "EasyOCR API key is required. Please set your API key."
-          //   );
-          // }
-
-          const extractedText = await processImageWithEasyOCR(
+        } else if (ocrMethod === "cleanTesseract") {
+          const extractedText = await processImageWithCleanTesseract(
             file,
             (progress) => setProgress(progress)
           );
@@ -641,9 +771,16 @@ const AppContent: React.FC = () => {
           console.log("Detected items:", items);
           setItemList(items);
           setOcrWords(extractedText.words);
-        } else if (ocrMethod === "cleanTesseract") {
-          const extractedText = await processImageWithCleanTesseract(
-            file,
+        } else if (ocrMethod === "gemini") {
+          if (!geminiApiKey) {
+            throw new Error(
+              "Gemini API key is required. Please set your API key."
+            );
+          }
+
+          const extractedText = await processImageWithGemini(
+            URL.createObjectURL(file),
+            geminiApiKey,
             (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
@@ -677,7 +814,7 @@ const AppContent: React.FC = () => {
         event.target.value = "";
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey]
+    [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]
   );
 
   const handleClipboardPaste = useCallback(
@@ -728,15 +865,8 @@ const AppContent: React.FC = () => {
           console.log("Detected items:", items);
           setItemList(items);
           setOcrWords(extractedText.words);
-        } else if (ocrMethod === "easyOCR") {
-          // No API key required for local server
-          // if (!easyOCRApiKey) {
-          //   throw new Error(
-          //     "EasyOCR API key is required. Please set your API key."
-          //   );
-          // }
-
-          const extractedText = await processImageWithEasyOCR(
+        } else if (ocrMethod === "cleanTesseract") {
+          const extractedText = await processImageWithCleanTesseract(
             file,
             (progress) => setProgress(progress)
           );
@@ -745,9 +875,16 @@ const AppContent: React.FC = () => {
           console.log("Detected items:", items);
           setItemList(items);
           setOcrWords(extractedText.words);
-        } else if (ocrMethod === "cleanTesseract") {
-          const extractedText = await processImageWithCleanTesseract(
-            file,
+        } else if (ocrMethod === "gemini") {
+          if (!geminiApiKey) {
+            throw new Error(
+              "Gemini API key is required. Please set your API key."
+            );
+          }
+
+          const extractedText = await processImageWithGemini(
+            URL.createObjectURL(file),
+            geminiApiKey,
             (progress) => setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
@@ -780,7 +917,7 @@ const AppContent: React.FC = () => {
         setProgress(0);
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey]
+    [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -880,15 +1017,8 @@ const AppContent: React.FC = () => {
         console.log("Detected items:", items);
         setItemList(items);
         setOcrWords(extractedText.words);
-      } else if (ocrMethod === "easyOCR") {
-        // No API key required for local server
-        // if (!easyOCRApiKey) {
-        //   throw new Error(
-        //     "EasyOCR API key is required. Please set your API key."
-        //   );
-        // }
-
-        const extractedText = await processImageWithEasyOCR(
+      } else if (ocrMethod === "cleanTesseract") {
+        const extractedText = await processImageWithCleanTesseract(
           file,
           (progress) => setProgress(progress)
         );
@@ -897,9 +1027,16 @@ const AppContent: React.FC = () => {
         console.log("Detected items:", items);
         setItemList(items);
         setOcrWords(extractedText.words);
-      } else if (ocrMethod === "cleanTesseract") {
-        const extractedText = await processImageWithCleanTesseract(
-          file,
+      } else if (ocrMethod === "gemini") {
+        if (!geminiApiKey) {
+          throw new Error(
+            "Gemini API key is required. Please set your API key."
+          );
+        }
+
+        const extractedText = await processImageWithGemini(
+          URL.createObjectURL(file),
+          geminiApiKey,
           (progress) => setProgress(progress)
         );
         console.log("OCR text extracted:", extractedText.text);
@@ -931,7 +1068,7 @@ const AppContent: React.FC = () => {
       setIsLoading(false);
       setProgress(0);
     }
-  }, [itemData, ocrMethod, googleVisionApiKey]);
+  }, [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]);
 
   useEffect(() => {
     return () => {
@@ -960,8 +1097,8 @@ const AppContent: React.FC = () => {
                   ? "Tesseract.js"
                   : ocrMethod === "cleanTesseract"
                   ? "Clean Tesseract"
-                  : ocrMethod === "easyOCR"
-                  ? "EasyOCR"
+                  : ocrMethod === "gemini"
+                  ? "Gemini"
                   : "Google Vision"}{" "}
                 OCR
               </span>
@@ -1037,9 +1174,9 @@ const AppContent: React.FC = () => {
               ocrMethod={ocrMethod}
               toggleOcrMethod={toggleOcrMethod}
               googleVisionApiKey={googleVisionApiKey}
-              showApiKeyInput={showApiKeyInput}
-              toggleApiKeyInput={toggleApiKeyInput}
-              saveApiKey={saveApiKey}
+              setGoogleVisionApiKey={setGoogleVisionApiKey}
+              geminiApiKey={geminiApiKey}
+              setGeminiApiKey={setGeminiApiKey}
             />
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -1064,8 +1201,7 @@ const AppContent: React.FC = () => {
                 <li>Use high-resolution screenshots for better results</li>
                 <li>Ensure item names are clearly visible</li>
                 <li>Adjust confidence threshold for more/fewer matches</li>
-                <li>Google Vision and EasyOCR typically provide better accuracy</li>
-                <li>EasyOCR is a good balance between speed and accuracy</li>
+                <li>Google Vision and Gemini typically provide better accuracy</li>
                 <li>Use dark mode for night-time raiding sessions</li>
               </ul>
             </div>

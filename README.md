@@ -14,7 +14,10 @@ Tarkov Item Scanner is a powerful tool that uses OCR (Optical Character Recognit
 - **Instant Item Recognition**: Upload screenshots from your Tarkov inventory and get immediate item identification
 - **Price Tracking**: See the current market value of all identified items
 - **Total Value Calculation**: Quickly determine the total worth of all items in your image
-- **Robust OCR Engine**: Uses Tesseract.js to accurately recognize item names even with common OCR mistakes
+- **Multiple OCR Options**: 
+  - Tesseract.js (local processing)
+  - Google Cloud Vision API
+  - **NEW: Gemini 2.0 AI Vision** for superior item recognition
 - **Dark/Light Mode**: Comfortable viewing in any environment
 - **Responsive Design**: Works on desktop and mobile devices
 
@@ -60,7 +63,10 @@ Tarkov Item Scanner is a powerful tool that uses OCR (Optical Character Recognit
 
 The scanner uses advanced OCR technology to:
 1. Process your uploaded image
-2. Extract text from the image
+2. Extract text from the image using your choice of OCR engine:
+   - Tesseract.js (offline, runs in browser)
+   - Google Cloud Vision API (requires API key)
+   - Gemini 2.0 (requires API key, provides AI-powered item recognition)
 3. Match the text against a database of known Tarkov items
 4. Calculate values based on current market prices
 5. Present the results in an easy-to-read format
@@ -70,6 +76,7 @@ The scanner uses advanced OCR technology to:
 - **React**: For the user interface
 - **TypeScript**: For type-safe code
 - **Tesseract.js**: For OCR processing
+- **Google Gemini 2.0**: For AI-powered item recognition
 - **Tailwind CSS**: For styling
 - **Vite**: For fast development and building
 
@@ -91,6 +98,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Escape from Tarkov](https://www.escapefromtarkov.com/) for the amazing game
 - [Tesseract.js](https://tesseract.projectnaptha.com/) for OCR capabilities
+- [Google Gemini](https://ai.google.dev/) for AI vision capabilities
 - All contributors and supporters of this project
 
 ---
