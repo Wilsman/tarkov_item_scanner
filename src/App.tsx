@@ -61,10 +61,10 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         // Check for common OCR mistakes
         const commonOcrMistakes: [string, string[]][] = [
-          ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
-          ["MTube", ["MTube", "mtube"]],
-          ["RBattery", ["RBattery", "Rattery", "RBattery"]],
-          ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
+          // ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
+          // ["MTube", ["MTube", "mtube"]],
+          // ["RBattery", ["RBattery", "Rattery", "RBattery"]],
+          // ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
         ];
 
         for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
