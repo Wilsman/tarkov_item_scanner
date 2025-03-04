@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { Database, Scan, AlertCircle } from "lucide-react";
+import { findOptimalItems } from "./lib/itemOptimizer";
 import { createWorker, createScheduler, Scheduler } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -514,17 +515,6 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-const toBase64 = async (input: string | File): Promise<string> => {
-  if (input instanceof File) {
-    return fileToBase64(input);
-  }
-  // If it's already a base64 string or data URL, return as is
-  if (typeof input === "string") {
-    return input;
-  }
-  throw new Error("Invalid input type for base64 conversion");
-};
-
 const AppContent: React.FC = () => {
   const [itemData, setItemData] = useState<ItemData[]>([]);
   const [itemList, setItemList] = useState<Item[]>([]);
@@ -556,13 +546,15 @@ const AppContent: React.FC = () => {
       bbox: { x0: number; y0: number; x1: number; y1: number };
     }>
   >([]);
-  const [showOcrHighlights, setShowOcrHighlights] = useState(true);
+  const [showOcrHighlights, setShowOcrHighlights] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Item | null;
     direction: "ascending" | "descending";
   }>({ key: null, direction: "ascending" });
   const [isDragging, setIsDragging] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [showOptimized, setShowOptimized] = useState(false);
+  const [optimizedItems, setOptimizedItems] = useState<Item[]>([]);
 
   // For scaling bounding boxes
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -881,6 +873,21 @@ const AppContent: React.FC = () => {
     [handleFileUpload]
   );
 
+  const handleOptimize = useCallback(() => {
+    const optimizationResult = findOptimalItems(itemList);
+    setOptimizedItems(optimizationResult.selected);
+    setShowOptimized(true);
+  }, [itemList]);
+
+  const handleClear = useCallback(() => {
+    setUploadedImage(null);
+    setItemList([]);
+    setOcrWords([]);
+    setError(null);
+    setOptimizedItems([]);
+    setShowOptimized(false);
+  }, []);
+
   const handleUseExample = useCallback(async () => {
     setIsLoading(true);
     setProgress(0);
@@ -1014,11 +1021,61 @@ const AppContent: React.FC = () => {
                   naturalSize={naturalSize}
                 />
                 <ActionButtons
-                  setUploadedImage={setUploadedImage}
-                  setItemList={setItemList}
-                  setOcrWords={setOcrWords}
+                  onScan={() => {
+                    // Re-scan the current image
+                    if (uploadedImage) {
+                      setIsLoading(true);
+                      setProgress(0);
+                      setError(null);
+                      setOcrWords([]);
+                      
+                      // Create a synthetic event to reuse existing scan logic
+                      const fetchImage = async () => {
+                        try {
+                          const response = await fetch(uploadedImage);
+                          const blob = await response.blob();
+                          const file = new File([blob], "image.png", { type: "image/png" });
+                          
+                          // Process with selected OCR method
+                          let extractedText;
+                          if (ocrMethod === "googleVision") {
+                            if (!googleVisionApiKey) {
+                              throw new Error("Google Cloud Vision API key is required");
+                            }
+                            extractedText = await processImageWithGoogleVision(file, googleVisionApiKey, (p) => setProgress(p));
+                          } else if (ocrMethod === "cleanTesseract") {
+                            extractedText = await processImageWithCleanTesseract(file, (p) => setProgress(p));
+                          } else if (ocrMethod === "gemini") {
+                            extractedText = await processImageWithGemini(file, (p) => setProgress(p));
+                          } else {
+                            extractedText = await processImageWithTesseract(file, (p) => setProgress(p));
+                          }
+                          
+                          console.log("OCR text extracted:", extractedText.text);
+                          const items = processOcrText(extractedText.text, itemData);
+                          console.log("Detected items:", items);
+                          setItemList(items);
+                          setOcrWords(extractedText.words);
+                        } catch (err) {
+                          console.error("Error processing image:", err);
+                          setError(err instanceof Error ? err.message : "An unknown error occurred");
+                          setItemList([]);
+                        } finally {
+                          setIsLoading(false);
+                          setProgress(0);
+                        }
+                      };
+                      
+                      fetchImage();
+                    }
+                  }}
+                  onClear={() => handleClear()}                  
+                  onOptimize={handleOptimize}
                   showOcrHighlights={showOcrHighlights}
-                  setShowOcrHighlights={setShowOcrHighlights}
+                  onToggleOcrHighlights={() => setShowOcrHighlights(!showOcrHighlights)}
+                  isLoading={isLoading}
+                  hasResults={itemList.length > 0}
+                  hasImage={!!uploadedImage}
                 />
 
                 {error && (
@@ -1041,13 +1098,21 @@ const AppContent: React.FC = () => {
                     <RawTextDisplay ocrWords={ocrWords} />
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                        Detected Items
+                        {showOptimized ? "Optimized Items" : "Detected Items"}
                       </h3>
                       <ResultsTable
-                        items={sortedItems}
+                        items={showOptimized ? optimizedItems : sortedItems}
                         sortConfig={sortConfig}
                         requestSort={requestSort}
                       />
+                      {showOptimized && (
+                        <button
+                          onClick={() => setShowOptimized(false)}
+                          className="mt-4 text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Show All Items
+                        </button>
+                      )}
                     </div>
                   </>
                 )}

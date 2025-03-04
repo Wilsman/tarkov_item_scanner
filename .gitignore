@@ -34,3 +34,4 @@ fly.toml
 .env.development.local
 .env.test.local
 .env.production.local
+gemini-ocr-worker/wrangler.jsonc

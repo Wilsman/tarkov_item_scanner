@@ -6,6 +6,13 @@
  */
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file when running locally
+dotenv.config();
+
+// For local development, get API key from process.env
+const localApiKey = process.env.GEMINI_API_KEY;
 
 export interface Env {
 	GEMINI_API_KEY?: string;
@@ -63,7 +70,7 @@ async function processImageWithGemini(imageData: string, apiKey: string): Promis
 
 		// Get the model with system instruction
 		const model = genAI.getGenerativeModel({
-			model: 'gemini-2.0-flash-exp',
+			model: 'gemini-2.0-pro-exp-02-05',
 			systemInstruction:
 				'You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {"RBattery": 3, "Powerbank": 1}. Do not include any other text or explanations.',
 		});

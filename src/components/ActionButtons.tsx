@@ -1,54 +1,81 @@
-import React from 'react';
-import { Item } from '../App';
+import React from "react";
+import { Scan, Trash2, Eye, EyeOff, Calculator } from "lucide-react";
 
 interface ActionButtonsProps {
-  setUploadedImage: (image: string | null) => void;
-  setItemList: React.Dispatch<React.SetStateAction<Item[]>>;
-  setOcrWords: React.Dispatch<React.SetStateAction<Array<{
-    text: string;
-    bbox: { x0: number; y0: number; x1: number; y1: number };
-  }>>>;
+  onScan: () => void;
+  onClear: () => void;
+  onOptimize: () => void;
   showOcrHighlights: boolean;
-  setShowOcrHighlights: (show: boolean) => void;
+  onToggleOcrHighlights: () => void;
+  isLoading: boolean;
+  hasResults: boolean;
+  hasImage: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
-  setUploadedImage,
-  setItemList,
-  setOcrWords,
+  onScan,
+  onClear,
+  onOptimize,
   showOcrHighlights,
-  setShowOcrHighlights,
+  onToggleOcrHighlights,
+  isLoading,
+  hasResults,
+  hasImage,
 }) => {
-  const handleReset = () => {
-    setUploadedImage(null);
-    setItemList([]);
-    setOcrWords([]);
-  };
-
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showOcrHighlights}
-              onChange={() => setShowOcrHighlights(!showOcrHighlights)}
-              className="sr-only peer"
-            />
-            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-            <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
-              Show OCR Highlights
-            </span>
-          </label>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors duration-200"
-          >
-            Reset
-          </button>
+    <div className="flex flex-wrap gap-2 justify-center mt-4">
+      <button
+        onClick={onScan}
+        disabled={!hasImage || isLoading}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+      >
+        <Scan className="h-5 w-5" />
+        Scan Image
+      </button>
+
+      <button
+        onClick={onClear}
+        disabled={!hasImage && !hasResults}
+        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+      >
+        <Trash2 className="h-5 w-5" />
+        RESET
+      </button>
+
+
+      {hasResults && (
+        <button
+          onClick={onToggleOcrHighlights}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+        >
+          {showOcrHighlights ? (
+            <>
+              <EyeOff className="h-5 w-5" />
+              Hide OCR
+            </>
+          ) : (
+            <>
+              <Eye className="h-5 w-5" />
+              Show OCR
+            </>
+          )}
+        </button>
+      )}
+      
+      <div className="w-full mt-2 flex justify-center">
+        <button
+          onClick={onOptimize}
+          disabled={!hasResults}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          <Calculator className="h-5 w-5" />
+          Find Optimal Items For Cultist Circle
+        </button>
+        <div className="flex items-center ml-2">
+          <div className="w-1 h-1 bg-gray-500 rounded-full mx-2"></div>
+          <span className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+            Calculates the optimal combination of items worth at least 400,000 roubles. Rewards include high-value items (14h cooldown) or a 25% chance of Quest/Hideout items (6h cooldown).
+          </span>
         </div>
       </div>
     </div>

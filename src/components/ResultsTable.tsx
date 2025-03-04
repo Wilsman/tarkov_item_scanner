@@ -13,12 +13,16 @@ interface ResultsTableProps {
 
 const ResultsTable: React.FC<ResultsTableProps> = ({
   items,
-  sortConfig,
+  // sortConfig,
   requestSort,
 }) => {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce(
     (sum, item) => sum + item.basePrice * item.quantity,
+    0
+  );
+  const totalCost = items.reduce(
+    (sum, item) => sum + (item.avg24hPrice || 0) * item.quantity,
     0
   );
 
@@ -105,6 +109,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         </p>
         <p className="font-medium text-gray-900 dark:text-white">
           Total Value: {totalValue.toLocaleString()} ₽
+        </p>
+        <p className="font-medium text-gray-900 dark:text-white">
+          Total Cost: {totalCost.toLocaleString()} ₽
         </p>
         <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
           Note: Some items may have a base price of 0 as they were not found in
