@@ -40,7 +40,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   // Process each line to extract item information
   const detectedItems = new Map<string, Item>();
 
-  // First, try to extract item names and quantities from structured format (e.g., "RBattery: 3")
+  // Process each line for structured format, e.g. "RBattery: 3"
   for (const line of lines) {
     // Try to match pattern like "ItemName: Quantity"
     const quantityMatch = line.match(/([^:]+):\s*(\d+)/);
@@ -49,68 +49,18 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
       const quantity = parseInt(quantityStr, 10);
       const cleanedItemName = itemName.trim();
 
-      // Try to find the item in the items list
+      // Try to find the item in the items list using exact match
       let foundItem = false;
       for (const item of items) {
-        // Check for exact match first
         if (cleanedItemName.toLowerCase() === item.shortName.toLowerCase()) {
           updateDetectedItems(detectedItems, item, quantity);
           foundItem = true;
           break;
         }
-
-        // Check for common OCR mistakes
-        const commonOcrMistakes: [string, string[]][] = [
-          // ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
-          // ["MTube", ["MTube", "mtube"]],
-          // ["RBattery", ["RBattery", "Rattery", "RBattery"]],
-          // ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
-        ];
-
-        for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
-          if (correctItem.toLowerCase() === item.shortName.toLowerCase()) {
-            for (const variant of mistakeVariants) {
-              if (cleanedItemName.toLowerCase() === variant.toLowerCase()) {
-                updateDetectedItems(detectedItems, item, quantity);
-                foundItem = true;
-                break;
-              }
-            }
-            if (foundItem) break;
-          }
-        }
-
-        if (foundItem) break;
-
-        // Check for partial matches with stricter threshold
-        const simplifiedItemName = item.shortName
-          .toLowerCase()
-          .replace(/\s+/g, "");
-        const simplifiedInput = cleanedItemName
-          .toLowerCase()
-          .replace(/\s+/g, "");
-
-        if (
-          simplifiedItemName.includes(simplifiedInput) ||
-          simplifiedInput.includes(simplifiedItemName)
-        ) {
-          // Calculate the similarity ratio between the two strings
-          const ratio =
-            Math.min(simplifiedInput.length, simplifiedItemName.length) /
-            Math.max(simplifiedInput.length, simplifiedItemName.length);
-
-          // Require at least an 80% match
-          if (ratio >= 0.8) {
-            updateDetectedItems(detectedItems, item, quantity);
-            foundItem = true;
-            break;
-          }
-        }
       }
 
-      // If we couldn't find the item in our database but it's from Gemini, create a placeholder item
+      // If we couldn't find the item in our database, create a placeholder item
       if (!foundItem && quantity > 0) {
-        // Create a placeholder item for unknown items
         const placeholderId = `unknown-${cleanedItemName}`;
         updateDetectedItems(
           detectedItems,
@@ -124,64 +74,21 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
         );
       }
 
-      // Skip further processing for this line since we've already handled it
+      // Skip further processing for this line since we've handled it
       continue;
     }
 
-    // If no quantity pattern found, fall back to the original word-by-word processing
+    // If no quantity pattern found, fall back to word-by-word processing
     const words = line.split(/\s+/).filter((word) => word.length > 0);
-
     for (const word of words) {
-      // Clean the word to remove special characters
       const cleanedWord = word.replace(/[^\w]/g, "").toLowerCase();
       if (cleanedWord.length < 2) continue; // Skip very short words
 
-      // Check against known items
       for (const item of items) {
-        // Check for exact match first
+        // Check for an exact match after stripping spaces
         if (cleanedWord === item.shortName.toLowerCase().replace(/\s+/g, "")) {
           updateDetectedItems(detectedItems, item);
           break;
-        }
-
-        // Check for common OCR mistakes
-        const commonOcrMistakes: [string, string[]][] = [
-          ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
-          ["MTube", ["MTube", "mtube"]],
-          ["RBattery", ["RBattery", "Rattery", "RBattery"]],
-          ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
-        ];
-
-        for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
-          if (correctItem.toLowerCase() === item.shortName.toLowerCase()) {
-            for (const variant of mistakeVariants) {
-              // Improved partial matching - check if the cleaned word contains the variant
-              // or if the variant contains the cleaned word (for partial matches like "EDX" in "LEDX")
-              if (
-                cleanedWord.includes(variant) ||
-                variant.includes(cleanedWord)
-              ) {
-                updateDetectedItems(detectedItems, item);
-                break;
-              }
-            }
-          }
-        }
-
-        // Check if the word is a substring of the item name (for partial matches)
-        // This helps with cases where OCR only captures part of a longer item name
-        const simplifiedItemName = item.shortName
-          .toLowerCase()
-          .replace(/\s+/g, "");
-        if (
-          simplifiedItemName.includes(cleanedWord) ||
-          cleanedWord.includes(simplifiedItemName)
-        ) {
-          // Only match if the partial match is substantial (at least 50% of the item name)
-          if (cleanedWord.length >= simplifiedItemName.length * 0.5) {
-            updateDetectedItems(detectedItems, item);
-            break;
-          }
         }
       }
     }
