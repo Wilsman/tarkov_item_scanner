@@ -285,79 +285,84 @@ const processImageWithGemini = async (
 }> => {
   try {
     // Get the Gemini API key from environment variables
-    const defaultGeminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
+    const defaultGeminiApiKey = import.meta.env.GEMINI_API_KEY;
+
     // Use the user-provided API key if available, otherwise use the default key
-    const effectiveApiKey = (apiKey && apiKey.trim() !== "") ? apiKey : defaultGeminiApiKey;
-    
+    const effectiveApiKey =
+      apiKey && apiKey.trim() !== "" ? apiKey : defaultGeminiApiKey;
+
     if (!effectiveApiKey) {
-      throw new Error("Gemini API key is required. Please set it in the settings or provide it as an environment variable.");
+      throw new Error(
+        "Gemini API key is required. Please set it in the settings or provide it as an environment variable."
+      );
     }
-    
+
     onProgress(10);
-    
+
     // Convert image to base64 if it's not already
     let base64Image = imageData;
     if (!imageData.startsWith("data:")) {
       base64Image = await toBase64(imageData);
     }
-    
+
     onProgress(30);
-    
+
     // Extract the base64 data part
     const base64Data = base64Image.split(",")[1];
-    
+
     // Prepare the request payload for Gemini
     const payload = {
       contents: [
         {
           parts: [
             {
-              text: "Identify all Escape from Tarkov items in this image with their quantities. Return only the items you can identify with high confidence."
+              text: "Identify all Escape from Tarkov items in this image with their quantities. Return only the items you can identify with high confidence.",
             },
             {
               inline_data: {
                 mime_type: "image/jpeg",
-                data: base64Data
-              }
-            }
-          ]
-        }
+                data: base64Data,
+              },
+            },
+          ],
+        },
       ],
       system_instruction: {
         parts: [
           {
-            text: "You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {\"RBattery\": 3, \"Powerbank\": 1}. Do not include any other text or explanations."
-          }
-        ]
-      }
+            text: 'You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {"RBattery": 3, "Powerbank": 1}. Do not include any other text or explanations.',
+          },
+        ],
+      },
     };
-    
+
     onProgress(50);
-    
+
     // Make the API request to Gemini
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${effectiveApiKey}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       }
     );
-    
+
     onProgress(70);
-    
+
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+      throw new Error(
+        `Gemini API error: ${errorData.error?.message || response.statusText}`
+      );
     }
-    
+
     const result = await response.json();
-    
+
     onProgress(90);
-    
+
     // Extract the text from the Gemini response
     let responseText = "";
     if (
@@ -372,9 +377,9 @@ const processImageWithGemini = async (
     } else {
       throw new Error("Unexpected response format from Gemini API");
     }
-    
+
     console.log("Gemini raw response:", responseText);
-    
+
     // Try to extract JSON from markdown code block if present
     let jsonData: Record<string, number> = {};
     const jsonMatch = responseText.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
@@ -395,21 +400,21 @@ const processImageWithGemini = async (
         }
       }
     }
-    
+
     // If JSON parsing failed, try to extract key-value pairs
     if (Object.keys(jsonData).length === 0) {
       // Try to parse space-separated key-value pairs (e.g., "RBattery: 3 Powerbank: 1")
       const itemRegex = /"?([^":]*)"\s*:\s*(\d+)/g;
       let match;
       while ((match = itemRegex.exec(responseText)) !== null) {
-        const [, key, value] = match; 
+        const [, key, value] = match;
         jsonData[key.trim()] = parseInt(value.trim(), 10);
       }
-      
+
       // If still no data, try line by line
       if (Object.keys(jsonData).length === 0) {
-        const lines = responseText.split('\n');
-        lines.forEach(line => {
+        const lines = responseText.split("\n");
+        lines.forEach((line) => {
           const match = line.match(/"?([^":]*)"\s*:\s*(\d+)/);
           if (match) {
             const [, key, value] = match;
@@ -418,41 +423,41 @@ const processImageWithGemini = async (
         });
       }
     }
-    
+
     console.log("Parsed JSON data:", jsonData);
-    
+
     // Convert the JSON to the format expected by processOcrText
     let textOutput = "";
     const words: Array<{
       text: string;
       bbox: { x0: number; y0: number; x1: number; y1: number };
     }> = [];
-    
+
     Object.entries(jsonData).forEach(([key, value], index) => {
       // Map common abbreviations to full item names for better matching
       const itemName = key;
-      
+
       // Don't modify the text output - keep it as is for debugging
       const text = `${itemName}: ${value}`;
       textOutput += text + "\n";
-      
+
       // Create a dummy bounding box since we don't have actual coordinates
       words.push({
         text,
         bbox: {
           x0: 10,
-          y0: 10 + (index * 20),
+          y0: 10 + index * 20,
           x1: 200,
-          y1: 30 + (index * 20)
-        }
+          y1: 30 + index * 20,
+        },
       });
     });
-    
+
     onProgress(100);
-    
+
     return {
       text: textOutput,
-      words
+      words,
     };
   } catch (error) {
     console.error("Error processing image with Gemini:", error);
@@ -609,10 +614,10 @@ const toBase64 = async (input: string | File): Promise<string> => {
     return fileToBase64(input);
   }
   // If it's already a base64 string or data URL, return as is
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     return input;
   }
-  throw new Error('Invalid input type for base64 conversion');
+  throw new Error("Invalid input type for base64 conversion");
 };
 
 const AppContent: React.FC = () => {
@@ -626,18 +631,24 @@ const AppContent: React.FC = () => {
   >(() => {
     const savedMethod = localStorage.getItem("ocrMethod");
     return (
-      (savedMethod as "tesseract" | "cleanTesseract" | "googleVision" | "gemini") ||
-      "gemini"
+      (savedMethod as
+        | "tesseract"
+        | "cleanTesseract"
+        | "googleVision"
+        | "gemini") || "gemini"
     );
   });
   const [googleVisionApiKey, setGoogleVisionApiKey] = useState(
-    () => import.meta.env.VITE_GOOGLE_VISION_API_KEY || localStorage.getItem("googleVisionApiKey") || ""
+    () =>
+      import.meta.env.VITE_GOOGLE_VISION_API_KEY ||
+      localStorage.getItem("googleVisionApiKey") ||
+      ""
   );
   const [geminiApiKey, setGeminiApiKey] = useState(() => {
     // If user has explicitly set a key in localStorage, use that
     const savedKey = localStorage.getItem("geminiApiKey");
     // Only use the saved key if it exists and is not empty
-    return (savedKey && savedKey.trim() !== "") ? savedKey : "";
+    return savedKey && savedKey.trim() !== "" ? savedKey : "";
   });
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [ocrWords, setOcrWords] = useState<
@@ -1201,7 +1212,9 @@ const AppContent: React.FC = () => {
                 <li>Use high-resolution screenshots for better results</li>
                 <li>Ensure item names are clearly visible</li>
                 <li>Adjust confidence threshold for more/fewer matches</li>
-                <li>Google Vision and Gemini typically provide better accuracy</li>
+                <li>
+                  Google Vision and Gemini typically provide better accuracy
+                </li>
                 <li>Use dark mode for night-time raiding sessions</li>
               </ul>
             </div>
