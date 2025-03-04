@@ -1,22 +1,15 @@
 import React, { useState } from "react";
 import { Moon, Sun } from "lucide-react";
-// import { TesseractSettings } from '../App';
 import { useTheme } from "../contexts/ThemeContext";
 
 interface SettingsPanelProps {
-  ocrMethod: "tesseract" | "cleanTesseract" | "googleVision" | "gemini";
-  toggleOcrMethod: (
-    method: "tesseract" | "cleanTesseract" | "googleVision" | "gemini"
-  ) => void;
-  googleVisionApiKey: string;
-  setGoogleVisionApiKey: (key: string) => void;
+  ocrMethod: "gemini";
+  toggleOcrMethod: (method: "gemini") => void;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   ocrMethod,
   toggleOcrMethod,
-  googleVisionApiKey,
-  setGoogleVisionApiKey,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [testingGemini, setTestingGemini] = useState(false);
@@ -100,96 +93,29 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 Gemini 2.0 (API)
               </label>
             </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="clean-tesseract"
-                name="ocr-method"
-                value="cleanTesseract"
-                checked={ocrMethod === "cleanTesseract"}
-                onChange={() => toggleOcrMethod("cleanTesseract")}
-                className="form-radio text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
-              />
-              <label
-                htmlFor="clean-tesseract"
-                className="ml-2 text-gray-700 dark:text-gray-300"
-              >
-                Tesseract (local)
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="google-vision"
-                name="ocr-method"
-                value="googleVision"
-                checked={ocrMethod === "googleVision"}
-                onChange={() => toggleOcrMethod("googleVision")}
-                className="form-radio text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
-              />
-              <label
-                htmlFor="google-vision"
-                className="ml-2 text-gray-700 dark:text-gray-300"
-              >
-                Google Cloud Vision (API)
-              </label>
-            </div>
           </div>
         </div>
 
-        {ocrMethod === "googleVision" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Google Vision API Key
-            </label>
-            <div className="flex items-center space-x-2">
-              <span className="text-gray-500 dark:text-gray-400">
-                {googleVisionApiKey
-                  ? `${googleVisionApiKey.substring(
-                      0,
-                      4
-                    )}...${googleVisionApiKey.substring(
-                      googleVisionApiKey.length - 4
-                    )}`
-                  : "No API key set"}
-              </span>
-              <button
-                onClick={() => {
-                  const key = prompt("Enter Google Vision API Key");
-                  if (key !== null) {
-                    setGoogleVisionApiKey(key);
-                  }
-                }}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
-              >
-                {googleVisionApiKey ? "Change" : "Set API Key"}
-              </button>
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+            Gemini Worker Connection
+          </label>
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={testGeminiWorker}
+              disabled={testingGemini}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors duration-200"
+            >
+              {testingGemini ? "Testing..." : "Test Connection"}
+            </button>
+            
+            {geminiTestResult && (
+              <div className={`mt-2 p-2 rounded ${geminiTestResult.includes("successful") ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                {geminiTestResult}
+              </div>
+            )}
           </div>
-        )}
-
-        {ocrMethod === "gemini" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Gemini Worker Connection
-            </label>
-            <div className="flex flex-col space-y-2">
-              <button
-                onClick={testGeminiWorker}
-                disabled={testingGemini}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors duration-200"
-              >
-                {testingGemini ? "Testing..." : "Test Connection"}
-              </button>
-              
-              {geminiTestResult && (
-                <div className={`mt-2 p-2 rounded ${geminiTestResult.includes("successful") ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                  {geminiTestResult}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

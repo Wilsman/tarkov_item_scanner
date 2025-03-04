@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { Database, Scan, AlertCircle } from "lucide-react";
 import { findOptimalItems } from "./lib/itemOptimizer";
-import { createWorker, createScheduler, Scheduler } from "tesseract.js";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -17,7 +16,7 @@ import ImagePreview from "./components/ImagePreview";
 import SettingsPanel from "./components/SettingsPanel";
 import ResultsTable from "./components/ResultsTable";
 import ProcessingOverlay from "./components/ProcessingOverlay";
-import RawTextDisplay from "./components/RawTextDisplay";
+// import RawTextDisplay from "./components/RawTextDisplay";
 import ActionButtons from "./components/ActionButtons";
 
 interface Item {
@@ -125,142 +124,6 @@ const updateDetectedItems = (
   }
 };
 
-const preprocessImage = async (imageUrl: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
-      const MAX_DIMENSION = 2000;
-
-      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-        if (width > height) {
-          height = Math.round((height * MAX_DIMENSION) / width);
-          width = MAX_DIMENSION;
-        } else {
-          width = Math.round((width * MAX_DIMENSION) / height);
-          height = MAX_DIMENSION;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Could not get canvas context"));
-        return;
-      }
-
-      // Convert to grayscale
-      ctx.drawImage(img, 0, 0, width, height);
-      const imageData = ctx.getImageData(0, 0, width, height);
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const gray =
-          0.3 * imageData.data[i] +
-          0.59 * imageData.data[i + 1] +
-          0.11 * imageData.data[i + 2];
-        imageData.data[i] =
-          imageData.data[i + 1] =
-          imageData.data[i + 2] =
-            gray;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      const processedImageUrl = canvas.toDataURL("image/png");
-      resolve(processedImageUrl);
-    };
-
-    img.onerror = (error) => {
-      reject(error);
-    };
-
-    img.src = imageUrl;
-  });
-};
-
-const processImageWithGoogleVision = async (
-  file: File,
-  apiKey: string,
-  onProgress: (progress: number) => void
-): Promise<{
-  text: string;
-  words: Array<{
-    text: string;
-    bbox: { x0: number; y0: number; x1: number; y1: number };
-  }>;
-}> => {
-  console.log("Processing image with Google Cloud Vision API...");
-  try {
-    onProgress(10);
-    // Convert the file to base64
-    const base64Image = await fileToBase64(file);
-
-    onProgress(30);
-
-    // Prepare the request to the Google Vision API
-    const visionApiUrl = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
-    const requestBody = {
-      requests: [
-        {
-          image: {
-            content: base64Image,
-          },
-          features: [
-            {
-              type: "TEXT_DETECTION",
-              maxResults: 1,
-            },
-          ],
-        },
-      ],
-    };
-
-    onProgress(40);
-    console.log("Sending request to Google Cloud Vision API...");
-    const response = await fetch(visionApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-    onProgress(70);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Google Cloud Vision API error: ${response.status} ${errorText}`
-      );
-    }
-
-    const data = (await response.json()) as VisionAPIResponse;
-    onProgress(90);
-
-    if (data.responses?.[0]?.textAnnotations?.[0]) {
-      const fullText = data.responses[0].textAnnotations[0].description;
-      const words = data.responses[0].textAnnotations
-        .slice(1)
-        .map((word: TextAnnotation) => ({
-          text: word.description,
-          bbox: {
-            x0: Math.min(...word.boundingPoly.vertices.map((v) => v.x ?? 0)),
-            y0: Math.min(...word.boundingPoly.vertices.map((v) => v.y ?? 0)),
-            x1: Math.max(...word.boundingPoly.vertices.map((v) => v.x ?? 0)),
-            y1: Math.max(...word.boundingPoly.vertices.map((v) => v.y ?? 0)),
-          },
-        }));
-      console.log("Google Cloud Vision API OCR completed");
-      return { text: fullText, words };
-    } else {
-      throw new Error("No text detected in the image");
-    }
-  } catch (error) {
-    console.error("Google Cloud Vision API OCR failed:", error);
-    throw error;
-  }
-};
-
 const processImageWithGemini = async (
   imageData: string | File,
   onProgress: (progress: number) => void
@@ -363,141 +226,6 @@ const processImageWithGemini = async (
   }
 };
 
-const processImageWithCleanTesseract = async (
-  file: File,
-  onProgress: (progress: number) => void
-): Promise<{
-  text: string;
-  words: Array<{
-    text: string;
-    bbox: { x0: number; y0: number; x1: number; y1: number };
-  }>;
-}> => {
-  if (!scheduler) {
-    console.log("Initializing Tesseract.js scheduler...");
-    scheduler = await initTesseract();
-  }
-
-  console.log("Starting Clean Tesseract recognition");
-  onProgress(10);
-
-  const preprocessedImage = await preprocessImage(URL.createObjectURL(file));
-  onProgress(30);
-
-  const result = await scheduler.addJob("recognize", preprocessedImage);
-  onProgress(90);
-
-  return {
-    text: result.data.text,
-    words: result.data.words.map(
-      (word: {
-        text: string;
-        bbox: { x0: number; y0: number; x1: number; y1: number };
-      }) => ({
-        text: word.text,
-        bbox: {
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-        },
-      })
-    ),
-  };
-};
-
-const processImageWithTesseract = async (
-  file: File,
-  onProgress: (progress: number) => void
-): Promise<{
-  text: string;
-  words: Array<{
-    text: string;
-    bbox: { x0: number; y0: number; x1: number; y1: number };
-  }>;
-}> => {
-  if (!scheduler) {
-    console.log("Initializing Tesseract.js scheduler...");
-    scheduler = await initTesseract();
-  }
-
-  console.log("Starting Tesseract recognition");
-  onProgress(10);
-
-  const preprocessedImage = await preprocessImage(URL.createObjectURL(file));
-  onProgress(30);
-
-  const result = await scheduler.addJob("recognize", preprocessedImage);
-  onProgress(90);
-
-  return {
-    text: result.data.text,
-    words: result.data.words.map(
-      (word: {
-        text: string;
-        bbox: { x0: number; y0: number; x1: number; y1: number };
-      }) => ({
-        text: word.text,
-        bbox: {
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-        },
-      })
-    ),
-  };
-};
-
-let scheduler: Scheduler | null = null;
-
-const initTesseract = async (): Promise<Scheduler> => {
-  if (scheduler) return scheduler;
-  console.log("Initializing Tesseract.js scheduler...");
-  scheduler = createScheduler();
-  try {
-    // Create workers with language pre-loaded
-    const worker1 = await createWorker("eng");
-    const worker2 = await createWorker("eng");
-    scheduler.addWorker(worker1);
-    scheduler.addWorker(worker2);
-    console.log("Tesseract.js initialized with 2 workers");
-    return scheduler;
-  } catch (error) {
-    console.error("Failed to initialize Tesseract workers:", error);
-    throw error;
-  }
-};
-
-const terminateTesseract = async (): Promise<void> => {
-  if (scheduler) {
-    console.log("Terminating Tesseract.js workers...");
-    await scheduler.terminate();
-    scheduler = null;
-    console.log("Tesseract.js workers terminated");
-  }
-};
-
-interface Vertex {
-  x: number;
-  y: number;
-}
-
-interface BoundingPoly {
-  vertices: Vertex[];
-}
-
-interface TextAnnotation {
-  description: string;
-  boundingPoly: BoundingPoly;
-}
-
-interface VisionAPIResponse {
-  responses: Array<{
-    textAnnotations: TextAnnotation[];
-  }>;
-}
-
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -521,24 +249,10 @@ const AppContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [ocrMethod, setOcrMethod] = useState<
-    "tesseract" | "cleanTesseract" | "googleVision" | "gemini"
-  >(() => {
+  const [ocrMethod, setOcrMethod] = useState<"gemini">(() => {
     const savedMethod = localStorage.getItem("ocrMethod");
-    return (
-      (savedMethod as
-        | "tesseract"
-        | "cleanTesseract"
-        | "googleVision"
-        | "gemini") || "gemini"
-    );
+    return (savedMethod as "gemini") || "gemini";
   });
-  const [googleVisionApiKey, setGoogleVisionApiKey] = useState(
-    () =>
-      import.meta.env.GOOGLE_VISION_API_KEY ||
-      localStorage.getItem("googleVisionApiKey") ||
-      ""
-  );
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [ocrWords, setOcrWords] = useState<
     Array<{
@@ -546,7 +260,6 @@ const AppContent: React.FC = () => {
       bbox: { x0: number; y0: number; x1: number; y1: number };
     }>
   >([]);
-  const [showOcrHighlights, setShowOcrHighlights] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Item | null;
     direction: "ascending" | "descending";
@@ -598,7 +311,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   const toggleOcrMethod = useCallback(
-    (method: "tesseract" | "cleanTesseract" | "googleVision" | "gemini") => {
+    (method: "gemini") => {
       setOcrMethod(method);
       localStorage.setItem("ocrMethod", method);
     },
@@ -646,54 +359,14 @@ const AppContent: React.FC = () => {
         const imageUrl = URL.createObjectURL(file);
         setUploadedImage(imageUrl);
 
-        if (ocrMethod === "googleVision") {
-          if (!googleVisionApiKey) {
-            throw new Error(
-              "Google Cloud Vision API key is required. Please set your API key."
-            );
-          }
-
-          const extractedText = await processImageWithGoogleVision(
-            file,
-            googleVisionApiKey,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else if (ocrMethod === "cleanTesseract") {
-          const extractedText = await processImageWithCleanTesseract(
-            file,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else if (ocrMethod === "gemini") {
-          const extractedText = await processImageWithGemini(file, (progress) =>
-            setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else {
-          // Default Tesseract
-          const extractedText = await processImageWithTesseract(
-            file,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        }
+        const extractedText = await processImageWithGemini(file, (progress) =>
+          setProgress(progress)
+        );
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
       } catch (err) {
         console.error("Error processing image:", err);
         setError(
@@ -708,7 +381,7 @@ const AppContent: React.FC = () => {
         event.target.value = "";
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey]
+    [itemData]
   );
 
   const handleClipboardPaste = useCallback(
@@ -742,54 +415,14 @@ const AppContent: React.FC = () => {
         const imageUrl = URL.createObjectURL(file);
         setUploadedImage(imageUrl);
 
-        if (ocrMethod === "googleVision") {
-          if (!googleVisionApiKey) {
-            throw new Error(
-              "Google Cloud Vision API key is required. Please set your API key."
-            );
-          }
-
-          const extractedText = await processImageWithGoogleVision(
-            file,
-            googleVisionApiKey,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else if (ocrMethod === "cleanTesseract") {
-          const extractedText = await processImageWithCleanTesseract(
-            file,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else if (ocrMethod === "gemini") {
-          const extractedText = await processImageWithGemini(file, (progress) =>
-            setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        } else {
-          // Default Tesseract
-          const extractedText = await processImageWithTesseract(
-            file,
-            (progress) => setProgress(progress)
-          );
-          console.log("OCR text extracted:", extractedText.text);
-          const items = processOcrText(extractedText.text, itemData);
-          console.log("Detected items:", items);
-          setItemList(items);
-          setOcrWords(extractedText.words);
-        }
+        const extractedText = await processImageWithGemini(file, (progress) =>
+          setProgress(progress)
+        );
+        console.log("OCR text extracted:", extractedText.text);
+        const items = processOcrText(extractedText.text, itemData);
+        console.log("Detected items:", items);
+        setItemList(items);
+        setOcrWords(extractedText.words);
       } catch (err) {
         console.error("Error processing image:", err);
         setError(
@@ -803,7 +436,7 @@ const AppContent: React.FC = () => {
         setProgress(0);
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey]
+    [itemData]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -873,11 +506,25 @@ const AppContent: React.FC = () => {
     [handleFileUpload]
   );
 
+  const [optimizeCooldown, setOptimizeCooldown] = useState(false);
+
   const handleOptimize = useCallback(() => {
-    const optimizationResult = findOptimalItems(itemList);
-    setOptimizedItems(optimizationResult.selected);
-    setShowOptimized(true);
-  }, [itemList]);
+    if (optimizeCooldown) return;
+    
+    setOptimizeCooldown(true);
+    
+    try {
+      const optimizationResult = findOptimalItems(itemList);
+      setOptimizedItems(optimizationResult.selected);
+      setShowOptimized(true);
+    } finally {
+      
+      // Set a 5-second cooldown
+      setTimeout(() => {
+        setOptimizeCooldown(false);
+      }, 3000);
+    }
+  }, [itemList, optimizeCooldown]);
 
   const handleClear = useCallback(() => {
     setUploadedImage(null);
@@ -901,54 +548,14 @@ const AppContent: React.FC = () => {
       const blob = await response.blob();
       const file = new File([blob], "screenshot1.png", { type: "image/png" });
 
-      if (ocrMethod === "googleVision") {
-        if (!googleVisionApiKey) {
-          throw new Error(
-            "Google Cloud Vision API key is required. Please set your API key."
-          );
-        }
-
-        const extractedText = await processImageWithGoogleVision(
-          file,
-          googleVisionApiKey,
-          (progress) => setProgress(progress)
-        );
-        console.log("OCR text extracted:", extractedText.text);
-        const items = processOcrText(extractedText.text, itemData);
-        console.log("Detected items:", items);
-        setItemList(items);
-        setOcrWords(extractedText.words);
-      } else if (ocrMethod === "cleanTesseract") {
-        const extractedText = await processImageWithCleanTesseract(
-          file,
-          (progress) => setProgress(progress)
-        );
-        console.log("OCR text extracted:", extractedText.text);
-        const items = processOcrText(extractedText.text, itemData);
-        console.log("Detected items:", items);
-        setItemList(items);
-        setOcrWords(extractedText.words);
-      } else if (ocrMethod === "gemini") {
-        const extractedText = await processImageWithGemini(file, (progress) =>
-          setProgress(progress)
-        );
-        console.log("OCR text extracted:", extractedText.text);
-        const items = processOcrText(extractedText.text, itemData);
-        console.log("Detected items:", items);
-        setItemList(items);
-        setOcrWords(extractedText.words);
-      } else {
-        // Default Tesseract
-        const extractedText = await processImageWithTesseract(
-          file,
-          (progress) => setProgress(progress)
-        );
-        console.log("OCR text extracted:", extractedText.text);
-        const items = processOcrText(extractedText.text, itemData);
-        console.log("Detected items:", items);
-        setItemList(items);
-        setOcrWords(extractedText.words);
-      }
+      const extractedText = await processImageWithGemini(file, (progress) =>
+        setProgress(progress)
+      );
+      console.log("OCR text extracted:", extractedText.text);
+      const items = processOcrText(extractedText.text, itemData);
+      console.log("Detected items:", items);
+      setItemList(items);
+      setOcrWords(extractedText.words);
     } catch (err) {
       console.error("Error processing image:", err);
       setError(
@@ -961,13 +568,7 @@ const AppContent: React.FC = () => {
       setIsLoading(false);
       setProgress(0);
     }
-  }, [itemData, ocrMethod, googleVisionApiKey]);
-
-  useEffect(() => {
-    return () => {
-      void terminateTesseract();
-    };
-  }, []);
+  }, [itemData]);
 
   return (
     <div
@@ -985,16 +586,7 @@ const AppContent: React.FC = () => {
             </div>
             <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
               <Database className="w-4 h-4 mr-1" />
-              <span>
-                {ocrMethod === "tesseract"
-                  ? "Tesseract.js"
-                  : ocrMethod === "cleanTesseract"
-                  ? "Clean Tesseract"
-                  : ocrMethod === "gemini"
-                  ? "Gemini"
-                  : "Google Vision"}{" "}
-                OCR
-              </span>
+              <span>Gemini OCR</span>
             </div>
           </div>
         </div>
@@ -1017,7 +609,6 @@ const AppContent: React.FC = () => {
                   uploadedImage={uploadedImage}
                   imgRef={imgRef}
                   ocrWords={ocrWords}
-                  showOcrHighlights={showOcrHighlights}
                   naturalSize={naturalSize}
                 />
                 <ActionButtons
@@ -1036,21 +627,7 @@ const AppContent: React.FC = () => {
                           const blob = await response.blob();
                           const file = new File([blob], "image.png", { type: "image/png" });
                           
-                          // Process with selected OCR method
-                          let extractedText;
-                          if (ocrMethod === "googleVision") {
-                            if (!googleVisionApiKey) {
-                              throw new Error("Google Cloud Vision API key is required");
-                            }
-                            extractedText = await processImageWithGoogleVision(file, googleVisionApiKey, (p) => setProgress(p));
-                          } else if (ocrMethod === "cleanTesseract") {
-                            extractedText = await processImageWithCleanTesseract(file, (p) => setProgress(p));
-                          } else if (ocrMethod === "gemini") {
-                            extractedText = await processImageWithGemini(file, (p) => setProgress(p));
-                          } else {
-                            extractedText = await processImageWithTesseract(file, (p) => setProgress(p));
-                          }
-                          
+                          const extractedText = await processImageWithGemini(file, (p) => setProgress(p));
                           console.log("OCR text extracted:", extractedText.text);
                           const items = processOcrText(extractedText.text, itemData);
                           console.log("Detected items:", items);
@@ -1069,13 +646,12 @@ const AppContent: React.FC = () => {
                       fetchImage();
                     }
                   }}
-                  onClear={() => handleClear()}                  
+                  onClear={() => handleClear()}
                   onOptimize={handleOptimize}
-                  showOcrHighlights={showOcrHighlights}
-                  onToggleOcrHighlights={() => setShowOcrHighlights(!showOcrHighlights)}
                   isLoading={isLoading}
                   hasResults={itemList.length > 0}
                   hasImage={!!uploadedImage}
+                  optimizeCooldown={optimizeCooldown}
                 />
 
                 {error && (
@@ -1095,7 +671,7 @@ const AppContent: React.FC = () => {
 
                 {itemList.length > 0 && (
                   <>
-                    <RawTextDisplay ocrWords={ocrWords} />
+                    {/* <RawTextDisplay ocrWords={ocrWords} /> */}
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                         {showOptimized ? "Optimized Items" : "Detected Items"}
@@ -1124,23 +700,7 @@ const AppContent: React.FC = () => {
             <SettingsPanel
               ocrMethod={ocrMethod}
               toggleOcrMethod={toggleOcrMethod}
-              googleVisionApiKey={googleVisionApiKey}
-              setGoogleVisionApiKey={setGoogleVisionApiKey}
             />
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                How It Works
-              </h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                <li>Upload a screenshot of your Tarkov inventory</li>
-                <li>Select your preferred OCR method</li>
-                <li>Process the image to detect items</li>
-                <li>View detected items and their estimated value</li>
-                <li>Sort results by name, price, or quantity</li>
-                <li>Export results for later reference</li>
-              </ol>
-            </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -1149,11 +709,6 @@ const AppContent: React.FC = () => {
               <ul className="list-disc list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
                 <li>Use high-resolution screenshots for better results</li>
                 <li>Ensure item names are clearly visible</li>
-                <li>Adjust confidence threshold for more/fewer matches</li>
-                <li>
-                  Google Vision and Gemini typically provide better accuracy
-                </li>
-                <li>Use dark mode for night-time raiding sessions</li>
               </ul>
             </div>
           </div>
