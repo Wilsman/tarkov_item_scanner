@@ -40,8 +40,93 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   // Process each line to extract item information
   const detectedItems = new Map<string, Item>();
 
+  // First, try to extract item names and quantities from structured format (e.g., "RBattery: 3")
   for (const line of lines) {
-    // Split the line into words and process each word
+    // Try to match pattern like "ItemName: Quantity"
+    const quantityMatch = line.match(/([^:]+):\s*(\d+)/);
+    if (quantityMatch) {
+      const [, itemName, quantityStr] = quantityMatch;
+      const quantity = parseInt(quantityStr, 10);
+      const cleanedItemName = itemName.trim();
+
+      // Try to find the item in the items list
+      let foundItem = false;
+      for (const item of items) {
+        // Check for exact match first
+        if (cleanedItemName.toLowerCase() === item.shortName.toLowerCase()) {
+          updateDetectedItems(detectedItems, item, quantity);
+          foundItem = true;
+          break;
+        }
+
+        // Check for common OCR mistakes
+        const commonOcrMistakes: [string, string[]][] = [
+          ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
+          ["MTube", ["MTube", "mtube"]],
+          ["RBattery", ["RBattery", "Rattery", "RBattery"]],
+          ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
+        ];
+
+        for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
+          if (correctItem.toLowerCase() === item.shortName.toLowerCase()) {
+            for (const variant of mistakeVariants) {
+              if (cleanedItemName.toLowerCase() === variant.toLowerCase()) {
+                updateDetectedItems(detectedItems, item, quantity);
+                foundItem = true;
+                break;
+              }
+            }
+            if (foundItem) break;
+          }
+        }
+
+        if (foundItem) break;
+
+        // Check for partial matches
+        const simplifiedItemName = item.shortName
+          .toLowerCase()
+          .replace(/\s+/g, "");
+        const simplifiedInput = cleanedItemName
+          .toLowerCase()
+          .replace(/\s+/g, "");
+
+        if (
+          simplifiedItemName.includes(simplifiedInput) ||
+          simplifiedInput.includes(simplifiedItemName)
+        ) {
+          // Only match if the partial match is substantial (at least 50% of the item name)
+          if (
+            simplifiedInput.length >= simplifiedItemName.length * 0.5 ||
+            simplifiedItemName.length >= simplifiedInput.length * 0.5
+          ) {
+            updateDetectedItems(detectedItems, item, quantity);
+            foundItem = true;
+            break;
+          }
+        }
+      }
+
+      // If we couldn't find the item in our database but it's from Gemini, create a placeholder item
+      if (!foundItem && quantity > 0) {
+        // Create a placeholder item for unknown items
+        const placeholderId = `unknown-${cleanedItemName}`;
+        updateDetectedItems(
+          detectedItems,
+          {
+            id: placeholderId,
+            name: cleanedItemName,
+            shortName: cleanedItemName,
+            basePrice: 0,
+          },
+          quantity
+        );
+      }
+
+      // Skip further processing for this line since we've already handled it
+      continue;
+    }
+
+    // If no quantity pattern found, fall back to the original word-by-word processing
     const words = line.split(/\s+/).filter((word) => word.length > 0);
 
     for (const word of words) {
@@ -59,20 +144,10 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         // Check for common OCR mistakes
         const commonOcrMistakes: [string, string[]][] = [
-          // ["LEDX", ["ledx", "led"]],
-          // ["GPU", ["gpu", "gpx"]],
-          // ["SSD", ["ssd", "sso"]],
-          // ["CPU", ["cpu"]],
-          // ["CPU fan", ["cpufan", "cpu fan"]],
-          // ["Lion", ["lion"]],
-          // ["Roler", ["roler"]],
-          // ["M.parts", ["mparts", "m.parts"]],
-          // ["Diary", ["diary"]],
-          // ["Hose", ["hose"]],
-          // ["Helix", ["helix"]],
           ["H2O2", ["H202", "h202", "h2o2", "2O2", "1202"]],
           ["MTube", ["MTube", "mtube"]],
           ["RBattery", ["RBattery", "Rattery", "RBattery"]],
+          ["MS2000", ["MS2000", "ms2000", "ms-2000", "ms 2000"]],
         ];
 
         for (const [correctItem, mistakeVariants] of commonOcrMistakes) {
@@ -205,14 +280,18 @@ const processImageWithGoogleVision = async (
   console.log("Processing image with Google Cloud Vision API...");
   try {
     onProgress(10);
+    // Convert the file to base64
     const base64Image = await fileToBase64(file);
-    onProgress(20);
+    
+    onProgress(30);
 
+    // Prepare the request to the Google Vision API
+    const visionApiUrl = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
     const requestBody = {
       requests: [
         {
           image: {
-            content: base64Image.split(",")[1],
+            content: base64Image,
           },
           features: [
             {
@@ -224,18 +303,15 @@ const processImageWithGoogleVision = async (
       ],
     };
 
-    onProgress(30);
+    onProgress(40);
     console.log("Sending request to Google Cloud Vision API...");
-    const response = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    const response = await fetch(visionApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
     onProgress(70);
 
     if (!response.ok) {
@@ -273,8 +349,7 @@ const processImageWithGoogleVision = async (
 };
 
 const processImageWithGemini = async (
-  imageData: string,
-  apiKey: string,
+  imageData: string | File,
   onProgress: (progress: number) => void
 ): Promise<{
   text: string;
@@ -284,183 +359,84 @@ const processImageWithGemini = async (
   }>;
 }> => {
   try {
-    // Get the Gemini API key from environment variables
-    const defaultGeminiApiKey = import.meta.env.GEMINI_API_KEY;
-
-    // Use the user-provided API key if available, otherwise use the default key
-    const effectiveApiKey =
-      apiKey && apiKey.trim() !== "" ? apiKey : defaultGeminiApiKey;
-
-    if (!effectiveApiKey) {
-      throw new Error(
-        "Gemini API key is required. Please set it in the settings or provide it as an environment variable."
-      );
-    }
-
     onProgress(10);
+    console.log("Starting Gemini image processing");
 
-    // Convert image to base64 if it's not already
-    let base64Image = imageData;
-    if (!imageData.startsWith("data:")) {
-      base64Image = await toBase64(imageData);
+    // Convert File to base64 if needed
+    let base64Data: string;
+    if (imageData instanceof File) {
+      console.log("Converting File to base64");
+      base64Data = await fileToBase64(imageData);
+      console.log(`Converted file to base64 (length: ${base64Data.length})`);
+    } else if (typeof imageData === "string" && (imageData.startsWith("blob:") || imageData.startsWith("http"))) {
+      console.log("Converting URL to base64");
+      // Handle URL objects by fetching and converting to base64
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      base64Data = await fileToBase64(new File([blob], "image.jpg"));
+      console.log(`Converted URL to base64 (length: ${base64Data.length})`);
+    } else {
+      // Already a base64 string
+      console.log("Using provided base64 data");
+      base64Data = imageData as string;
     }
 
+    onProgress(20);
+
+    // Determine the worker URL based on the environment
+    const isLocalDev = import.meta.env.DEV;
+    const workerUrl = isLocalDev
+      ? "http://127.0.0.1:8787" // Local development URL
+      : import.meta.env.VITE_GEMINI_WORKER_URL ||
+        "https://gemini-ocr-worker.cultistcircle.workers.dev"; // Production URL
+
+    console.log("Using worker URL:", workerUrl);
     onProgress(30);
 
-    // Extract the base64 data part
-    const base64Data = base64Image.split(",")[1];
-
-    // Prepare the request payload for Gemini
+    // Prepare the request payload
     const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: "Identify all Escape from Tarkov items in this image with their quantities. Return only the items you can identify with high confidence.",
-            },
-            {
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: base64Data,
-              },
-            },
-          ],
-        },
-      ],
-      system_instruction: {
-        parts: [
-          {
-            text: 'You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {"RBattery": 3, "Powerbank": 1}. Do not include any other text or explanations.',
-          },
-        ],
-      },
+      imageData: base64Data,
     };
+    console.log(`Sending request to worker with payload size: ${JSON.stringify(payload).length}`);
 
-    onProgress(50);
-
-    // Make the API request to Gemini
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${effectiveApiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    // Send the image data to the worker
+    console.log("Sending request to Gemini worker");
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    console.log(`Received response from worker: ${response.status} ${response.statusText}`);
 
     onProgress(70);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        `Gemini API error: ${errorData.error?.message || response.statusText}`
-      );
-    }
-
-    const result = await response.json();
-
-    onProgress(90);
-
-    // Extract the text from the Gemini response
-    let responseText = "";
-    if (
-      result.candidates &&
-      result.candidates[0] &&
-      result.candidates[0].content &&
-      result.candidates[0].content.parts &&
-      result.candidates[0].content.parts[0] &&
-      result.candidates[0].content.parts[0].text
-    ) {
-      responseText = result.candidates[0].content.parts[0].text;
-    } else {
-      throw new Error("Unexpected response format from Gemini API");
-    }
-
-    console.log("Gemini raw response:", responseText);
-
-    // Try to extract JSON from markdown code block if present
-    let jsonData: Record<string, number> = {};
-    const jsonMatch = responseText.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
-    if (jsonMatch) {
+      const errorText = await response.text();
+      console.error("Worker error response:", errorText);
+      
+      let errorMessage = response.statusText;
       try {
-        jsonData = JSON.parse(jsonMatch[1]);
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || response.statusText;
       } catch (e) {
-        console.error("Failed to parse JSON from code block:", e);
+        // If parsing fails, use the raw text
+        errorMessage = errorText || response.statusText;
       }
-    } else {
-      // If not in code block, try to find JSON directly
-      const directJsonMatch = responseText.match(/{[\s\S]*?}/);
-      if (directJsonMatch) {
-        try {
-          jsonData = JSON.parse(directJsonMatch[0]);
-        } catch (e) {
-          console.error("Failed to parse direct JSON:", e);
-        }
-      }
+      throw new Error(`Worker error: ${errorMessage} (${response.status})`);
     }
 
-    // If JSON parsing failed, try to extract key-value pairs
-    if (Object.keys(jsonData).length === 0) {
-      // Try to parse space-separated key-value pairs (e.g., "RBattery: 3 Powerbank: 1")
-      const itemRegex = /"?([^":]*)"\s*:\s*(\d+)/g;
-      let match;
-      while ((match = itemRegex.exec(responseText)) !== null) {
-        const [, key, value] = match;
-        jsonData[key.trim()] = parseInt(value.trim(), 10);
-      }
-
-      // If still no data, try line by line
-      if (Object.keys(jsonData).length === 0) {
-        const lines = responseText.split("\n");
-        lines.forEach((line) => {
-          const match = line.match(/"?([^":]*)"\s*:\s*(\d+)/);
-          if (match) {
-            const [, key, value] = match;
-            jsonData[key.trim()] = parseInt(value.trim(), 10);
-          }
-        });
-      }
-    }
-
-    console.log("Parsed JSON data:", jsonData);
-
-    // Convert the JSON to the format expected by processOcrText
-    let textOutput = "";
-    const words: Array<{
-      text: string;
-      bbox: { x0: number; y0: number; x1: number; y1: number };
-    }> = [];
-
-    Object.entries(jsonData).forEach(([key, value], index) => {
-      // Map common abbreviations to full item names for better matching
-      const itemName = key;
-
-      // Don't modify the text output - keep it as is for debugging
-      const text = `${itemName}: ${value}`;
-      textOutput += text + "\n";
-
-      // Create a dummy bounding box since we don't have actual coordinates
-      words.push({
-        text,
-        bbox: {
-          x0: 10,
-          y0: 10 + index * 20,
-          x1: 200,
-          y1: 30 + index * 20,
-        },
-      });
-    });
+    // Parse the response
+    console.log("Parsing worker response");
+    const result = await response.json();
+    console.log("Worker response parsed successfully");
 
     onProgress(100);
 
-    return {
-      text: textOutput,
-      words,
-    };
+    return result;
   } catch (error) {
-    console.error("Error processing image with Gemini:", error);
+    console.error("Error processing image with Gemini worker:", error);
     throw error;
   }
 };
@@ -604,8 +580,16 @@ const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64Data = result.split(",")[1];
+      resolve(base64Data);
+    };
+    reader.onerror = (error) => {
+      console.error("Error converting file to base64:", error);
+      reject(error);
+    };
   });
 };
 
@@ -640,16 +624,10 @@ const AppContent: React.FC = () => {
   });
   const [googleVisionApiKey, setGoogleVisionApiKey] = useState(
     () =>
-      import.meta.env.VITE_GOOGLE_VISION_API_KEY ||
+      import.meta.env.GOOGLE_VISION_API_KEY ||
       localStorage.getItem("googleVisionApiKey") ||
       ""
   );
-  const [geminiApiKey, setGeminiApiKey] = useState(() => {
-    // If user has explicitly set a key in localStorage, use that
-    const savedKey = localStorage.getItem("geminiApiKey");
-    // Only use the saved key if it exists and is not empty
-    return savedKey && savedKey.trim() !== "" ? savedKey : "";
-  });
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [ocrWords, setOcrWords] = useState<
     Array<{
@@ -783,16 +761,8 @@ const AppContent: React.FC = () => {
           setItemList(items);
           setOcrWords(extractedText.words);
         } else if (ocrMethod === "gemini") {
-          if (!geminiApiKey) {
-            throw new Error(
-              "Gemini API key is required. Please set your API key."
-            );
-          }
-
-          const extractedText = await processImageWithGemini(
-            URL.createObjectURL(file),
-            geminiApiKey,
-            (progress) => setProgress(progress)
+          const extractedText = await processImageWithGemini(file, (progress) =>
+            setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
           const items = processOcrText(extractedText.text, itemData);
@@ -825,7 +795,7 @@ const AppContent: React.FC = () => {
         event.target.value = "";
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]
+    [itemData, ocrMethod, googleVisionApiKey]
   );
 
   const handleClipboardPaste = useCallback(
@@ -887,16 +857,8 @@ const AppContent: React.FC = () => {
           setItemList(items);
           setOcrWords(extractedText.words);
         } else if (ocrMethod === "gemini") {
-          if (!geminiApiKey) {
-            throw new Error(
-              "Gemini API key is required. Please set your API key."
-            );
-          }
-
-          const extractedText = await processImageWithGemini(
-            URL.createObjectURL(file),
-            geminiApiKey,
-            (progress) => setProgress(progress)
+          const extractedText = await processImageWithGemini(file, (progress) =>
+            setProgress(progress)
           );
           console.log("OCR text extracted:", extractedText.text);
           const items = processOcrText(extractedText.text, itemData);
@@ -928,7 +890,7 @@ const AppContent: React.FC = () => {
         setProgress(0);
       }
     },
-    [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]
+    [itemData, ocrMethod, googleVisionApiKey]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -1039,16 +1001,8 @@ const AppContent: React.FC = () => {
         setItemList(items);
         setOcrWords(extractedText.words);
       } else if (ocrMethod === "gemini") {
-        if (!geminiApiKey) {
-          throw new Error(
-            "Gemini API key is required. Please set your API key."
-          );
-        }
-
-        const extractedText = await processImageWithGemini(
-          URL.createObjectURL(file),
-          geminiApiKey,
-          (progress) => setProgress(progress)
+        const extractedText = await processImageWithGemini(file, (progress) =>
+          setProgress(progress)
         );
         console.log("OCR text extracted:", extractedText.text);
         const items = processOcrText(extractedText.text, itemData);
@@ -1079,7 +1033,7 @@ const AppContent: React.FC = () => {
       setIsLoading(false);
       setProgress(0);
     }
-  }, [itemData, ocrMethod, googleVisionApiKey, geminiApiKey]);
+  }, [itemData, ocrMethod, googleVisionApiKey]);
 
   useEffect(() => {
     return () => {
@@ -1186,8 +1140,6 @@ const AppContent: React.FC = () => {
               toggleOcrMethod={toggleOcrMethod}
               googleVisionApiKey={googleVisionApiKey}
               setGoogleVisionApiKey={setGoogleVisionApiKey}
-              geminiApiKey={geminiApiKey}
-              setGeminiApiKey={setGeminiApiKey}
             />
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
