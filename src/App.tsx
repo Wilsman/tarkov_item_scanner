@@ -82,7 +82,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
 
         if (foundItem) break;
 
-        // Check for partial matches
+        // Check for partial matches with stricter threshold
         const simplifiedItemName = item.shortName
           .toLowerCase()
           .replace(/\s+/g, "");
@@ -94,11 +94,13 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
           simplifiedItemName.includes(simplifiedInput) ||
           simplifiedInput.includes(simplifiedItemName)
         ) {
-          // Only match if the partial match is substantial (at least 50% of the item name)
-          if (
-            simplifiedInput.length >= simplifiedItemName.length * 0.5 ||
-            simplifiedItemName.length >= simplifiedInput.length * 0.5
-          ) {
+          // Calculate the similarity ratio between the two strings
+          const ratio =
+            Math.min(simplifiedInput.length, simplifiedItemName.length) /
+            Math.max(simplifiedInput.length, simplifiedItemName.length);
+
+          // Require at least an 80% match
+          if (ratio >= 0.8) {
             updateDetectedItems(detectedItems, item, quantity);
             foundItem = true;
             break;
@@ -282,7 +284,7 @@ const processImageWithGoogleVision = async (
     onProgress(10);
     // Convert the file to base64
     const base64Image = await fileToBase64(file);
-    
+
     onProgress(30);
 
     // Prepare the request to the Google Vision API
@@ -368,7 +370,10 @@ const processImageWithGemini = async (
       console.log("Converting File to base64");
       base64Data = await fileToBase64(imageData);
       console.log(`Converted file to base64 (length: ${base64Data.length})`);
-    } else if (typeof imageData === "string" && (imageData.startsWith("blob:") || imageData.startsWith("http"))) {
+    } else if (
+      typeof imageData === "string" &&
+      (imageData.startsWith("blob:") || imageData.startsWith("http"))
+    ) {
       console.log("Converting URL to base64");
       // Handle URL objects by fetching and converting to base64
       const response = await fetch(imageData);
@@ -397,7 +402,11 @@ const processImageWithGemini = async (
     const payload = {
       imageData: base64Data,
     };
-    console.log(`Sending request to worker with payload size: ${JSON.stringify(payload).length}`);
+    console.log(
+      `Sending request to worker with payload size: ${
+        JSON.stringify(payload).length
+      }`
+    );
 
     // Send the image data to the worker
     console.log("Sending request to Gemini worker");
@@ -408,14 +417,16 @@ const processImageWithGemini = async (
       },
       body: JSON.stringify(payload),
     });
-    console.log(`Received response from worker: ${response.status} ${response.statusText}`);
+    console.log(
+      `Received response from worker: ${response.status} ${response.statusText}`
+    );
 
     onProgress(70);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Worker error response:", errorText);
-      
+
       let errorMessage = response.statusText;
       try {
         const errorData = JSON.parse(errorText);
