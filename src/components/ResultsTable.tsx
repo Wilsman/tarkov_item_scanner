@@ -1,6 +1,6 @@
-import React from 'react';
-import { ArrowUpDown } from 'lucide-react';
-import { Item } from '../App';
+import React from "react";
+import { ArrowUpDown } from "lucide-react";
+import { Item } from "../App";
 
 interface ResultsTableProps {
   items: Item[];
@@ -55,6 +55,15 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                   <ArrowUpDown className="ml-1 h-4 w-4" />
                 </div>
               </th>
+              <th
+                className="px-4 py-2 text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => requestSort("avg24hPrice")}
+              >
+                <div className="flex items-center justify-end">
+                  Avg 24h Price (₽)
+                  <ArrowUpDown className="ml-1 h-4 w-4" />
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -76,6 +85,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                 <td className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">
                   {item.basePrice.toLocaleString()}
                 </td>
+                <td className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">
+                  {item.avg24hPrice !== null
+                    ? item.avg24hPrice.toLocaleString()
+                    : "N/A"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -83,7 +97,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       </div>
 
       <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Summary</h2>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          Summary
+        </h2>
         <p className="font-medium text-gray-900 dark:text-white">
           Total Items: {totalItems}
         </p>
@@ -91,8 +107,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           Total Value: {totalValue.toLocaleString()} ₽
         </p>
         <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
-          Note: Some items may have a base price of 0 as they were not found in the database
-          or have special values.
+          Note: Some items may have a base price of 0 as they were not found in
+          the database or have special values.
         </p>
       </div>
     </div>

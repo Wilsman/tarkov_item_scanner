@@ -29,6 +29,7 @@ interface Item {
   gridImageLink?: string;
   quantity: number;
   basePrice: number;
+  avg24hPrice: number | null;
 }
 
 const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
@@ -69,7 +70,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
             name: cleanedItemName,
             shortName: cleanedItemName,
             basePrice: 0,
-            avg24hPrice: 0
+            avg24hPrice: null,
           },
           quantity
         );
@@ -118,6 +119,7 @@ const updateDetectedItems = (
       gridImageLink: itemData.gridImageLink,
       basePrice: itemData.basePrice,
       quantity,
+      avg24hPrice: itemData.avg24hPrice,
     });
   }
 };
