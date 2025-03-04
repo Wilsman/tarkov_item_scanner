@@ -375,7 +375,7 @@ export const itemData: ItemData[] = [
   {
     id: "59e361e886f774176c10a2a5",
     name: "Bottle of hydrogen peroxide",
-    shortName: "H2O2",
+    shortName: "H202",
     basePrice: 12168,
   },
   {
@@ -447,7 +447,7 @@ export const itemData: ItemData[] = [
   {
     id: "5af0561e86f7745f5f3ad6ac",
     name: "Portable Powerbank",
-    shortName: "Powerban",
+    shortName: "Powerbank",
     basePrice: 20391,
   },
   {
