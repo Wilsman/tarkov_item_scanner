@@ -69,6 +69,7 @@ const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
             name: cleanedItemName,
             shortName: cleanedItemName,
             basePrice: 0,
+            avg24hPrice: 0
           },
           quantity
         );
