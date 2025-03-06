@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowUpDown } from "lucide-react";
 import { Item } from "../App";
+import { ignoreList } from "../data/ignore_list";
 
 interface ResultsTableProps {
   items: Item[];
@@ -80,7 +81,13 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                     : "bg-white dark:bg-gray-800"
                 }`}
               >
-                <td className="border border-gray-200 dark:border-gray-700 px-4 py-2">
+                <td
+                  className={`border border-gray-200 dark:border-gray-700 px-4 py-2 ${
+                    ignoreList.includes(item.name)
+                      ? "text-red-500 line-through"
+                      : ""
+                  }`}
+                >
                   {item.name}
                 </td>
                 <td className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-center">
