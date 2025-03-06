@@ -310,13 +310,10 @@ const AppContent: React.FC = () => {
     loadItemData();
   }, []);
 
-  const toggleOcrMethod = useCallback(
-    (method: "gemini") => {
-      setOcrMethod(method);
-      localStorage.setItem("ocrMethod", method);
-    },
-    []
-  );
+  const toggleOcrMethod = useCallback((method: "gemini") => {
+    setOcrMethod(method);
+    localStorage.setItem("ocrMethod", method);
+  }, []);
 
   const requestSort = (key: string) => {
     let direction: "ascending" | "descending" = "ascending";
@@ -510,15 +507,14 @@ const AppContent: React.FC = () => {
 
   const handleOptimize = useCallback(() => {
     if (optimizeCooldown) return;
-    
+
     setOptimizeCooldown(true);
-    
+
     try {
       const optimizationResult = findOptimalItems(itemList);
       setOptimizedItems(optimizationResult.selected);
       setShowOptimized(true);
     } finally {
-      
       // Set a 5-second cooldown
       setTimeout(() => {
         setOptimizeCooldown(false);
@@ -541,12 +537,12 @@ const AppContent: React.FC = () => {
     setError(null);
     setOcrWords([]);
     try {
-      const exampleImage = "/screenshot1.png";
+      const exampleImage = "/screenshot2.png";
       setUploadedImage(exampleImage);
 
       const response = await fetch(exampleImage);
       const blob = await response.blob();
-      const file = new File([blob], "screenshot1.png", { type: "image/png" });
+      const file = new File([blob], "screenshot2.png", { type: "image/png" });
 
       const extractedText = await processImageWithGemini(file, (progress) =>
         setProgress(progress)
@@ -619,30 +615,45 @@ const AppContent: React.FC = () => {
                       setProgress(0);
                       setError(null);
                       setOcrWords([]);
-                      
+
                       // Create a synthetic event to reuse existing scan logic
                       const fetchImage = async () => {
                         try {
                           const response = await fetch(uploadedImage);
                           const blob = await response.blob();
-                          const file = new File([blob], "image.png", { type: "image/png" });
-                          
-                          const extractedText = await processImageWithGemini(file, (p) => setProgress(p));
-                          console.log("OCR text extracted:", extractedText.text);
-                          const items = processOcrText(extractedText.text, itemData);
+                          const file = new File([blob], "image.png", {
+                            type: "image/png",
+                          });
+
+                          const extractedText = await processImageWithGemini(
+                            file,
+                            (p) => setProgress(p)
+                          );
+                          console.log(
+                            "OCR text extracted:",
+                            extractedText.text
+                          );
+                          const items = processOcrText(
+                            extractedText.text,
+                            itemData
+                          );
                           console.log("Detected items:", items);
                           setItemList(items);
                           setOcrWords(extractedText.words);
                         } catch (err) {
                           console.error("Error processing image:", err);
-                          setError(err instanceof Error ? err.message : "An unknown error occurred");
+                          setError(
+                            err instanceof Error
+                              ? err.message
+                              : "An unknown error occurred"
+                          );
                           setItemList([]);
                         } finally {
                           setIsLoading(false);
                           setProgress(0);
                         }
                       };
-                      
+
                       fetchImage();
                     }
                   }}

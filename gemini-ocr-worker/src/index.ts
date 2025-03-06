@@ -72,7 +72,7 @@ async function processImageWithGemini(imageData: string, apiKey: string): Promis
 		const model = genAI.getGenerativeModel({
 			model: 'gemini-2.0-pro-exp-02-05',
 			systemInstruction:
-				'You are an expert in Escape from Tarkov items. ONLY return a JSON object with item names as keys and quantities as integer values. For example: {"RBattery": 3, "Powerbank": 1}. Do not include any other text or explanations.',
+				'You are an expert in Escape from Tarkov items. Your task is to precisely count the quantity of each item in the image. ONLY return a JSON object where keys are exact item names and values are the precise count of those items. For example: {"RBattery": 3, "Powerbank": 1}. Follow these rules strictly:\n1. Count each item individually and verify the count multiple times\n2. Only include items that are clearly visible in the image\n3. Use exact item names as they appear in-game\n4. Return only integer values representing the exact count\n5. Do not include any explanatory text or descriptions\n6. If an item stack shows a number, use that number as the count',
 		});
 
 		// Configure generation parameters
