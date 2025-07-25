@@ -11,29 +11,26 @@ export const ThresholdSelector: React.FC<ThresholdSelectorProps> = ({
   onThresholdChange,
 }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
         Loot Value Threshold
       </h3>
-      <div className="space-y-2">
-        {Object.entries(THRESHOLD_CONFIG).map(([key, config]) => (
-          <div key={key} className="flex items-center">
+      <div className="space-y-3">
+        {(['very_low', 'low', 'medium', 'high', 'very_high', 'premium', 'quest'] as LootThreshold[]).map((key) => (
+          <label key={key} className="flex items-center space-x-3 cursor-pointer">
             <input
-              id={`threshold-${key}`}
-              name="loot-threshold"
               type="radio"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+              name="threshold"
+              value={key}
               checked={threshold === key}
-              onChange={() => onThresholdChange(key as LootThreshold)}
+              onChange={(e) => onThresholdChange(e.target.value as LootThreshold)}
+              className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
-            <label
-              htmlFor={`threshold-${key}`}
-              className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              {config.label} - {config.time} hours
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {THRESHOLD_CONFIG[key].label}
               {key === 'quest' && ` (${(THRESHOLD_CONFIG.quest.chance * 100)}% for ${THRESHOLD_CONFIG.quest.altTime}h)`}
-            </label>
-          </div>
+            </span>
+          </label>
         ))}
       </div>
       <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">

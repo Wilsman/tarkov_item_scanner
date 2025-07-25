@@ -273,7 +273,7 @@ const AppContent: React.FC = () => {
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [showOptimized, setShowOptimized] = useState(false);
   const [optimizedItems, setOptimizedItems] = useState<Item[]>([]);
-  const [lootThreshold, setLootThreshold] = useState<LootThreshold>('normal');
+  const [lootThreshold, setLootThreshold] = useState<LootThreshold>('premium');
   
   // Apply ritual times based on item value and selected threshold
   const applyRitualTimes = useCallback((items: Item[]): Item[] => {
@@ -281,16 +281,42 @@ const AppContent: React.FC = () => {
       const price = item.avg24hPrice ?? item.basePrice;
       let ritualTime: number;
       
-      if (lootThreshold === 'quest' && price >= 400000) {
-        // For quest/hideout items, 25% chance for 6h, 75% for 14h
-        ritualTime = Math.random() < 0.25 ? 6 : 14;
-      } else if (lootThreshold === 'high' && price > 350000) {
-        ritualTime = 14; // High value items take 14h
-      } else {
-        ritualTime = 12; // Normal items take 12h
+      // Use the threshold configuration to determine ritual time
+      switch (lootThreshold) {
+        case 'very_low':
+          ritualTime = price <= 10000 ? 2 : 2;
+          break;
+        case 'low':
+          ritualTime = price >= 10001 && price <= 25000 ? 3 : 3;
+          break;
+        case 'medium':
+          ritualTime = price >= 25001 && price <= 50000 ? 4 : 4;
+          break;
+        case 'high':
+          ritualTime = price >= 50001 && price <= 100000 ? 5 : 5;
+          break;
+        case 'very_high':
+          ritualTime = price >= 100001 && price <= 200000 ? 8 : 8;
+          break;
+        case 'premium':
+          ritualTime = price >= 200001 && price <= 399999 ? 12 : 12;
+          break;
+        case 'quest':
+          // For quest/hideout items (400,000+), 25% chance for 6h, 75% for 14h
+          if (price >= 400000) {
+            ritualTime = Math.random() < 0.25 ? 6 : 14;
+          } else {
+            ritualTime = 14;
+          }
+          break;
+        default:
+          ritualTime = 12;
       }
       
-      return { ...item, ritualTime };
+      return {
+        ...item,
+        ritualTime
+      };
     });
   }, [lootThreshold]);
 
