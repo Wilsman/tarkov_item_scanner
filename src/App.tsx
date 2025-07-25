@@ -34,7 +34,7 @@ interface Item {
   ritualTime?: number; // Time in hours for ritual completion
 }
 
-import { LootThreshold } from './types/loot';
+import { LootThreshold } from "./types/loot";
 
 const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   console.log("Processing OCR results...");
@@ -273,37 +273,40 @@ const AppContent: React.FC = () => {
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [showOptimized, setShowOptimized] = useState(false);
   const [optimizedItems, setOptimizedItems] = useState<Item[]>([]);
-  const [lootThreshold, setLootThreshold] = useState<LootThreshold>('quest');
-  
+  const [lootThreshold, setLootThreshold] = useState<LootThreshold>("quest");
+
   // Apply ritual times based on item value and selected threshold
-  const applyRitualTimes = useCallback((items: Item[]): Item[] => {
-    return items.map(item => {
-      const price = item.avg24hPrice ?? item.basePrice;
-      let ritualTime: number;
-      
-      // Use the threshold configuration to determine ritual time
-      switch (lootThreshold) {
-        case 'high-value':
-          ritualTime = price >= 350001 && price <= 399999 ? 12 : 12;
-          break;
-        case 'quest':
-          // For quest/hideout items (400,000+), 25% chance for 6h, 75% for 14h 
-          if (price >= 400000) {
-            ritualTime = Math.random() < 0.25 ? 6 : 14;
-          } else {
+  const applyRitualTimes = useCallback(
+    (items: Item[]): Item[] => {
+      return items.map((item) => {
+        const price = item.avg24hPrice ?? item.basePrice;
+        let ritualTime: number;
+
+        // Use the threshold configuration to determine ritual time
+        switch (lootThreshold) {
+          case "high-value":
+            ritualTime = price >= 350001 && price <= 399999 ? 12 : 12;
+            break;
+          case "quest":
+            // For quest/hideout items (400,000+), 25% chance for 6h, 75% for 14h
+            if (price >= 400000) {
+              ritualTime = Math.random() < 0.25 ? 6 : 14;
+            } else {
+              ritualTime = 14;
+            }
+            break;
+          default:
             ritualTime = 14;
-          }
-          break;
-        default:
-          ritualTime = 14;
-      }
-      
-      return {
-        ...item,
-        ritualTime
-      };
-    });
-  }, [lootThreshold]);
+        }
+
+        return {
+          ...item,
+          ritualTime,
+        };
+      });
+    },
+    [lootThreshold]
+  );
 
   // For scaling bounding boxes
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -555,20 +558,23 @@ const AppContent: React.FC = () => {
 
       // Apply ritual times based on selected loot threshold
       const itemsWithRitualTimes = applyRitualTimes(itemList);
-      
+
       // Determine target value based on selected threshold
       let targetValue = 400000; // Default fallback
       switch (lootThreshold) {
-        case 'high-value':
+        case "high-value":
           targetValue = 350000;
           break;
-        case 'quest':
+        case "quest":
           targetValue = 400000;
           break;
       }
-      
-      const optimizationResult = findOptimalItems(itemsWithRitualTimes, targetValue);
-      
+
+      const optimizationResult = findOptimalItems(
+        itemsWithRitualTimes,
+        targetValue
+      );
+
       // Then show optimized results
       setOptimizedItems(optimizationResult.selected);
       setShowOptimized(true);
@@ -650,13 +656,108 @@ const AppContent: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             {!uploadedImage ? (
-              <ImageUploader
-                onFileUpload={handleFileUpload}
-                isDragging={isDragging}
-                setIsDragging={setIsDragging}
-                isCtrlPressed={isCtrlPressed}
-                onUseExample={handleUseExample}
-              />
+              <>
+                <div>
+                  <ImageUploader
+                    onFileUpload={handleFileUpload}
+                    isDragging={isDragging}
+                    setIsDragging={setIsDragging}
+                    isCtrlPressed={isCtrlPressed}
+                    onUseExample={handleUseExample}
+                  />
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
+                    <Scan className="w-5 h-5 mr-2" />
+                    How to Use This Tool
+                  </h3>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Example Image */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+                        Example Screenshot
+                      </h4>
+                      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                        <img
+                          src="/screenshot2.png"
+                          alt="Example Junk Box screenshot showing proper positioning and clarity"
+                          className="w-full h-auto object-contain"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        Take your screenshot like this example - clear,
+                        high-resolution, showing your entire Junk Box
+                      </p>
+                    </div>
+
+                    {/* Instructions */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+                        Step-by-Step Guide
+                      </h4>
+                      <ol className="space-y-3 text-sm">
+                        <li className="flex items-start">
+                          <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                            1
+                          </span>
+                          <div>
+                            <strong>Open your Junk Box</strong> in Escape from
+                            Tarkov
+                          </div>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                            2
+                          </span>
+                          <div>
+                            <strong>Take a screenshot</strong> showing all items
+                            clearly (use F12 or Print Screen)
+                          </div>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                            3
+                          </span>
+                          <div>
+                            <strong>Upload or paste</strong> your screenshot
+                            using the upload area above
+                          </div>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                            4
+                          </span>
+                          <div>
+                            <strong>Review results</strong> - items will be
+                            automatically detected and valued
+                          </div>
+                        </li>
+                      </ol>
+
+                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          💡 Pro Tips:
+                        </p>
+                        <ul className="text-xs mt-2 space-y-1 text-yellow-700 dark:text-yellow-300">
+                          <li>
+                            • Use high-resolution screenshots (1920x1080 or
+                            higher)
+                          </li>
+                          <li>• Ensure item names are clearly visible</li>
+                          <li>
+                            • Include your entire Junk Box in the screenshot
+                          </li>
+                          <li>
+                            • Use the "Use example image" button to test the
+                            tool
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <ImagePreview
@@ -766,7 +867,7 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            <ThresholdSelector 
+            <ThresholdSelector
               threshold={lootThreshold}
               onThresholdChange={setLootThreshold}
             />

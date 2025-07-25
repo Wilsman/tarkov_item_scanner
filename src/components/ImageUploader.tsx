@@ -116,7 +116,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             <div className="w-48 h-32 overflow-hidden rounded">
               <img
                 src="/screenshot2.png"
-                alt="Example screenshot preview"
+                alt="Example Junk Box screenshot"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/screenshot1.png";
