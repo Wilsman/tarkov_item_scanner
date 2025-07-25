@@ -33,6 +33,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-white dark:bg-gray-800">
             <tr>
+              <th className="px-4 py-2 text-left">Image</th>
               <th
                 className="px-4 py-2 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => requestSort("name")}
@@ -81,6 +82,23 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                     : "bg-white dark:bg-gray-800"
                 }`}
               >
+                <td className="border border-gray-200 dark:border-gray-700 px-4 py-2">
+                  {item.id ? (
+                    <img
+                      src={`https://assets.tarkov.dev/${item.id}-grid-image.webp`}
+                      alt={item.name}
+                      className="w-12 h-12 object-contain rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).onerror = null;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xs text-gray-500">
+                      No Image
+                    </div>
+                  )}
+                </td>
                 <td
                   className={`border border-gray-200 dark:border-gray-700 px-4 py-2 ${
                     ignoreList.includes(item.name)

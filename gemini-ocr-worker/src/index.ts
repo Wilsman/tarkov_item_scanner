@@ -87,7 +87,7 @@ async function processImageWithOpenRouter(imageData: string, apiKey: string): Pr
 
 	// Prepare the prompt for Tarkov item detection
 	const prompt =
-		'You are an expert in Escape from Tarkov items. Your task is to precisely count the quantity of each item in the image. ONLY return a JSON object where keys are exact item names and values are the precise count of those items. For example: {"RBattery": 3, "Powerbank": 1}. Follow these rules strictly:\n1. Count each item individually and verify the count multiple times\n2. Only include items that are clearly visible in the image\n3. Use exact item names as they appear in-game\n4. Return only integer values representing the exact count\n5. Do not include any explanatory text or descriptions\n6. If an item stack shows a number, use that number as the count';
+		'You are an expert in Escape from Tarkov items. Your task is to precisely count the quantity of each item in the image. ONLY return a JSON object where keys are exact item names and values are the precise count of those items. For example: {"RBattery": 3, "Powerbank": 1}. Follow these rules strictly:\n1. Count each item individually and verify the count multiple times\n2. Only include items that are clearly visible in the image\n3. Use exact item names as they appear in-game\n4. Return only integer values representing the exact count\n5. Do not include any explanatory text or descriptions\n6. If an item stack shows a number, use that number as the count, "H202" should be "H2O2"';
 
 	// Prepare the OpenRouter API request
 	const requestData: OpenAIChatCompletionRequest = {

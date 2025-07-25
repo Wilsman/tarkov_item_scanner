@@ -16,7 +16,7 @@ export const ThresholdSelector: React.FC<ThresholdSelectorProps> = ({
         Loot Value Threshold
       </h3>
       <div className="space-y-3">
-        {(['very_low', 'low', 'medium', 'high', 'very_high', 'premium', 'quest'] as LootThreshold[]).map((key) => (
+        {(['high-value', 'quest'] as LootThreshold[]).map((key) => (
           <label key={key} className="flex items-center space-x-3 cursor-pointer">
             <input
               type="radio"

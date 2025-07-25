@@ -9,7 +9,7 @@ interface OptimizationResult {
 
 export const findOptimalItems = (
   items: Item[],
-  targetValue: number = 400000,
+  targetValue: number,
   maxItems: number = 5
 ): OptimizationResult => {
   // Filter out items with no market value (avg24hPrice)
