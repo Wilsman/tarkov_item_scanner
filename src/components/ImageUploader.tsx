@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface ImageUploaderProps {
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -77,11 +77,21 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
               ></path>
             </svg>
             <p className="mb-1 text-sm text-gray-600 dark:text-gray-400">
-              <span className="font-semibold">Click to upload</span> or drag and drop
+              <span className="font-semibold">Click to upload</span> or drag and
+              drop
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, or JPEG</p>
-            <p className={`text-xs mt-1 ${isCtrlPressed ? "font-bold text-green-500" : "text-gray-500 dark:text-gray-400"}`}>
-              <span className="font-semibold">Or press Ctrl+V</span> to paste from clipboard
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              PNG, JPG, or JPEG
+            </p>
+            <p
+              className={`text-xs mt-1 ${
+                isCtrlPressed
+                  ? "font-bold text-green-500"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
+            >
+              <span className="font-semibold">Or press Ctrl+V</span> to paste
+              from clipboard
             </p>
           </div>
           <input
@@ -92,12 +102,37 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           />
         </label>
       </div>
-      <button
-        onClick={onUseExample}
-        className="mt-2 w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center justify-center py-1"
-      >
-        <span>Use example image</span>
-      </button>
+      <div className="relative group mt-2">
+        <button
+          onClick={onUseExample}
+          className="w-full text-sm text-blue-600 dark:text-yellow-400 hover:text-gray-900 dark:hover:text-white flex items-center justify-center py-1 transition-all duration-200"
+        >
+          <span>Use example image</span>
+        </button>
+
+        {/* Hover preview tooltip */}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2">
+            <div className="w-48 h-32 overflow-hidden rounded">
+              <img
+                src="/screenshot2.png"
+                alt="Example screenshot preview"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/screenshot1.png";
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-center">
+              Example inventory screenshot
+            </p>
+          </div>
+          {/* Arrow pointing down */}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+            <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white dark:border-t-gray-800"></div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
