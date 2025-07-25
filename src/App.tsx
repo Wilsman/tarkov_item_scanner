@@ -538,9 +538,15 @@ const AppContent: React.FC = () => {
     setOptimizeCooldown(true);
 
     try {
-      // Apply ritual times before optimization
+      // Reset view first (similar to "Show All Items" behavior)
+      setShowOptimized(false);
+      setOptimizedItems([]);
+
+      // Apply ritual times based on selected loot threshold
       const itemsWithRitualTimes = applyRitualTimes(itemList);
       const optimizationResult = findOptimalItems(itemsWithRitualTimes);
+      
+      // Then show optimized results
       setOptimizedItems(optimizationResult.selected);
       setShowOptimized(true);
     } finally {

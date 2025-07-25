@@ -92,7 +92,8 @@ async function processImageWithOpenRouter(imageData: string, apiKey: string): Pr
 	// Prepare the OpenRouter API request
 	const requestData: OpenAIChatCompletionRequest = {
 		// model: 'google/gemini-2.0-flash-exp:free',
-		model: 'mistralai/mistral-small-3.2-24b-instruct:free',
+		// model: 'mistralai/mistral-small-3.2-24b-instruct:free',
+		model: 'google/gemini-2.5-flash-lite',
 		messages: [
 			{
 				role: 'user',
