@@ -9,6 +9,7 @@ import { Database, Scan, AlertCircle } from "lucide-react";
 import { findOptimalItems } from "./lib/itemOptimizer";
 import { ItemData } from "./data/items";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ThresholdSelector } from "./components/ThresholdSelector";
 
 // Components
 import ImageUploader from "./components/ImageUploader";
@@ -30,7 +31,10 @@ interface Item {
   quantity: number;
   basePrice: number;
   avg24hPrice: number | null;
+  ritualTime?: number; // Time in hours for ritual completion
 }
+
+import { LootThreshold } from './types/loot';
 
 const processOcrText = (ocrText: string, items: ItemData[]): Item[] => {
   console.log("Processing OCR results...");
@@ -124,7 +128,7 @@ const updateDetectedItems = (
   }
 };
 
-const processImageWithGemini = async (
+const processImageWithOpenRouter = async (
   imageData: string | File,
   onProgress: (progress: number) => void
 ): Promise<{
@@ -136,7 +140,7 @@ const processImageWithGemini = async (
 }> => {
   try {
     onProgress(10);
-    console.log("Starting Gemini image processing");
+    console.log("Starting OpenRouter image processing");
 
     // Convert File to base64 if needed
     let base64Data: string;
@@ -166,7 +170,7 @@ const processImageWithGemini = async (
     const isLocalDev = import.meta.env.DEV;
     const workerUrl = isLocalDev
       ? "http://127.0.0.1:8787" // Local development URL
-      : import.meta.env.VITE_GEMINI_WORKER_URL ||
+      : import.meta.env.VITE_OPENROUTER_WORKER_URL ||
         "https://gemini-ocr-worker.cultistcircle.workers.dev"; // Production URL
 
     console.log("Using worker URL:", workerUrl);
@@ -183,7 +187,7 @@ const processImageWithGemini = async (
     );
 
     // Send the image data to the worker
-    console.log("Sending request to Gemini worker");
+    console.log("Sending request to OpenRouter worker");
     const response = await fetch(workerUrl, {
       method: "POST",
       headers: {
@@ -206,6 +210,7 @@ const processImageWithGemini = async (
         const errorData = JSON.parse(errorText);
         errorMessage = errorData.error || response.statusText;
       } catch (e) {
+        console.error("Error parsing worker error response:", e);
         // If parsing fails, use the raw text
         errorMessage = errorText || response.statusText;
       }
@@ -221,7 +226,7 @@ const processImageWithGemini = async (
 
     return result;
   } catch (error) {
-    console.error("Error processing image with Gemini worker:", error);
+    console.error("Error processing image with OpenRouter worker:", error);
     throw error;
   }
 };
@@ -268,6 +273,26 @@ const AppContent: React.FC = () => {
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [showOptimized, setShowOptimized] = useState(false);
   const [optimizedItems, setOptimizedItems] = useState<Item[]>([]);
+  const [lootThreshold, setLootThreshold] = useState<LootThreshold>('normal');
+  
+  // Apply ritual times based on item value and selected threshold
+  const applyRitualTimes = useCallback((items: Item[]): Item[] => {
+    return items.map(item => {
+      const price = item.avg24hPrice ?? item.basePrice;
+      let ritualTime: number;
+      
+      if (lootThreshold === 'quest' && price >= 400000) {
+        // For quest/hideout items, 25% chance for 6h, 75% for 14h
+        ritualTime = Math.random() < 0.25 ? 6 : 14;
+      } else if (lootThreshold === 'high' && price > 350000) {
+        ritualTime = 14; // High value items take 14h
+      } else {
+        ritualTime = 12; // Normal items take 12h
+      }
+      
+      return { ...item, ritualTime };
+    });
+  }, [lootThreshold]);
 
   // For scaling bounding boxes
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -356,8 +381,9 @@ const AppContent: React.FC = () => {
         const imageUrl = URL.createObjectURL(file);
         setUploadedImage(imageUrl);
 
-        const extractedText = await processImageWithGemini(file, (progress) =>
-          setProgress(progress)
+        const extractedText = await processImageWithOpenRouter(
+          file,
+          (progress) => setProgress(progress)
         );
         console.log("OCR text extracted:", extractedText.text);
         const items = processOcrText(extractedText.text, itemData);
@@ -412,8 +438,9 @@ const AppContent: React.FC = () => {
         const imageUrl = URL.createObjectURL(file);
         setUploadedImage(imageUrl);
 
-        const extractedText = await processImageWithGemini(file, (progress) =>
-          setProgress(progress)
+        const extractedText = await processImageWithOpenRouter(
+          file,
+          (progress) => setProgress(progress)
         );
         console.log("OCR text extracted:", extractedText.text);
         const items = processOcrText(extractedText.text, itemData);
@@ -511,16 +538,18 @@ const AppContent: React.FC = () => {
     setOptimizeCooldown(true);
 
     try {
-      const optimizationResult = findOptimalItems(itemList);
+      // Apply ritual times before optimization
+      const itemsWithRitualTimes = applyRitualTimes(itemList);
+      const optimizationResult = findOptimalItems(itemsWithRitualTimes);
       setOptimizedItems(optimizationResult.selected);
       setShowOptimized(true);
     } finally {
-      // Set a 5-second cooldown
+      // Set a 3-second cooldown
       setTimeout(() => {
         setOptimizeCooldown(false);
       }, 3000);
     }
-  }, [itemList, optimizeCooldown]);
+  }, [optimizeCooldown, itemList, applyRitualTimes]);
 
   const handleClear = useCallback(() => {
     setUploadedImage(null);
@@ -544,7 +573,7 @@ const AppContent: React.FC = () => {
       const blob = await response.blob();
       const file = new File([blob], "screenshot2.png", { type: "image/png" });
 
-      const extractedText = await processImageWithGemini(file, (progress) =>
+      const extractedText = await processImageWithOpenRouter(file, (progress) =>
         setProgress(progress)
       );
       console.log("OCR text extracted:", extractedText.text);
@@ -625,10 +654,10 @@ const AppContent: React.FC = () => {
                             type: "image/png",
                           });
 
-                          const extractedText = await processImageWithGemini(
-                            file,
-                            (p) => setProgress(p)
-                          );
+                          const extractedText =
+                            await processImageWithOpenRouter(file, (p) =>
+                              setProgress(p)
+                            );
                           console.log(
                             "OCR text extracted:",
                             extractedText.text
@@ -708,6 +737,10 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="space-y-6">
+            <ThresholdSelector 
+              threshold={lootThreshold}
+              onThresholdChange={setLootThreshold}
+            />
             <SettingsPanel
               ocrMethod={ocrMethod}
               toggleOcrMethod={toggleOcrMethod}
